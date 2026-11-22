@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#09090b" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>ApproveHub — Mobile Reimbursement & Google Sheets Sync</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #09090b;
+      color: #f4f4f5;
+      -webkit-tap-highlight-color: transparent;
+    }
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #09090b;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #27272a;
+      border-radius: 9999px;
+    }
+    .glass-card {
+      background: rgba(24, 24, 27, 0.78);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .bottom-nav-blur {
+      background: rgba(9, 9, 11, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slide-up {
+      animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex justify-center bg-zinc-950 text-zinc-100 selection:bg-indigo-500 selection:text-white">
+
+  <!-- App Container (Responsive Mobile & Desktop) -->
+  <div class="w-full max-w-2xl min-h-screen bg-zinc-950 flex flex-col relative shadow-2xl md:border-x md:border-zinc-800/80 pb-24">
+
+    <!-- TOP HEADER -->
+    <header class="sticky top-0 z-30 bottom-nav-blur px-4 py-3.5 flex items-center justify-between border-b border-zinc-800/80">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+          <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <h1 class="font-bold text-base tracking-tight text-white">ApproveHub</h1>
+            <span id="roleBadge" class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              Approver
+            </span>
+          </div>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span id="gsheetStatusDot" class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+            <p id="gsheetStatusText" class="text-[10px] text-zinc-400">Mode Lokal (Belum terhubung Sheet)</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-1.5">
+        <!-- Refresh from Google Sheets Button -->
+        <button onclick="fetchFromGoogleSheets(true)" id="btnRefreshSheet" title="Sinkronisasi dari Google Sheets" class="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition active:scale-95">
+          <i data-lucide="refresh-cw" id="refreshIcon" class="w-3.5 h-3.5 text-emerald-400"></i>
+        </button>
+
+        <!-- Role Switcher Button -->
+        <button onclick="openRoleModal()" class="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-xs font-medium text-zinc-200 transition active:scale-95">
+          <i data-lucide="user-check" class="w-3.5 h-3.5 text-indigo-400"></i>
+          <span id="roleSwitchText">Approver</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-1 px-4 pt-4 space-y-5">
+
+      <!-- ========================================== -->
+      <!-- VIEW 1: DASHBOARD APPROVAL & DAFTAR REQUEST -->
+      <!-- ========================================== -->
+      <section id="view-dashboard" class="space-y-4">
+
+        <!-- Google Sheets Connection Banner (If not connected yet) -->
+        <div id="gsheetSetupBanner" class="glass-card rounded-2xl p-3.5 border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/90 to-zinc-900/90 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <i data-lucide="sheet" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <p class="text-xs font-bold text-white">Hubungkan ke Google Sheets & Drive</p>
+              <p class="text-[10px] text-zinc-400">Simpan klaim & foto struk anggota otomatis ke Google Drive Anda</p>
+            </div>
+          </div>
+          <button onclick="switchTab('reports')" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] whitespace-nowrap transition">
+            Setup →
+          </button>
+        </div>
+
+        <!-- Compact Summary Bar -->
+        <div class="glass-card rounded-2xl p-3 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-3">
+            <div class="px-2.5 py-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-center">
+              <p class="text-[10px] text-zinc-400">Menunggu</p>
+              <p id="statPendingCount" class="text-xs font-extrabold text-amber-300">0</p>
+              <p id="statPendingAmount" class="text-[10px] text-amber-400/90 font-semibold">Rp 0</p>
+            </div>
+            <div class="px-2.5 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-center">
+              <p class="text-[10px] text-zinc-400">Disetujui</p>
+              <p id="statApprovedCount" class="text-xs font-extrabold text-emerald-300">0</p>
+              <p id="statApprovedAmount" class="text-[10px] text-emerald-400/90 font-semibold">Rp 0</p>
+            </div>
+            <div class="hidden sm:block pl-1">
+              <p class="text-[10px] text-zinc-400">Total Pengajuan</p>
+              <p id="statTotalAllAmount" class="text-sm font-extrabold text-white">Rp 0</p>
+            </div>
+          </div>
+          <button onclick="exportCSV()" class="px-3 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-200 flex items-center gap-1.5 border border-zinc-700 transition active:scale-95">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-indigo-400"></i>
+            CSV
+          </button>
+        </div>
+
+        <!-- Search & Filter Controls -->
+        <div class="space-y-2.5">
+          <div class="relative">
+            <i data-lucide="search" class="w-4 h-4 text-zinc-500 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+            <input 
+              type="text" 
+              id="searchInput" 
+              oninput="renderRequests()" 
+              placeholder="Cari nama anggota, judul biaya, atau kategori..." 
+              class="w-full pl-10 pr-4 py-2.5 bg-zinc-900/90 border border-zinc-800 rounded-xl text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 transition"
+            />
+          </div>
+
+          <!-- Status Filter Pills -->
+          <div class="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <button onclick="setStatusFilter('ALL')" id="filter-ALL" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-indigo-600 text-white">
+              Semua
+            </button>
+            <button onclick="setStatusFilter('PENDING')" id="filter-PENDING" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-zinc-900 text-zinc-400 border border-zinc-800">
+              ⏳ Menunggu
+            </button>
+            <button onclick="setStatusFilter('APPROVED')" id="filter-APPROVED" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-zinc-900 text-zinc-400 border border-zinc-800">
+              ✅ Disetujui
+            </button>
+            <button onclick="setStatusFilter('REVISION')" id="filter-REVISION" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-zinc-900 text-zinc-400 border border-zinc-800">
+              🔄 Revisi
+            </button>
+            <button onclick="setStatusFilter('REJECTED')" id="filter-REJECTED" class="filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-zinc-900 text-zinc-400 border border-zinc-800">
+              ❌ Ditolak
+            </button>
+          </div>
+        </div>
+
+        <!-- Request Cards List -->
+        <div id="requestsList" class="space-y-3 pb-4"></div>
+      </section>
+
+
+      <!-- ========================================== -->
+      <!-- VIEW 2: FORM PENGAJUAN ANGGOTA BARU        -->
+      <!-- ========================================== -->
+      <section id="view-form" class="hidden space-y-4 pb-6">
+        <div class="glass-card rounded-2xl p-4 border border-zinc-800">
+          <div class="flex items-center gap-2.5 mb-4">
+            <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+              <i data-lucide="file-plus-2" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-white">Form Pengajuan Dana / Reimbursement</h2>
+              <p class="text-[11px] text-zinc-400">Otomatis tersimpan ke Dashboard & Google Sheets</p>
+            </div>
+          </div>
+
+          <form id="reimburseForm" onsubmit="submitNewRequest(event)" class="space-y-3.5">
+            <div>
+              <label class="block text-xs font-medium text-zinc-300 mb-1">Nama Anggota Tim *</label>
+              <input type="text" id="formName" required placeholder="Contoh: Budi Santoso" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-zinc-300 mb-1">Divisi / Jabatan *</label>
+                <input type="text" id="formRole" required placeholder="Contoh: Marketing" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-zinc-300 mb-1">Kategori Biaya *</label>
+                <select id="formCategory" class="w-full px-3 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500">
+                  <option value="Operasional & Transport">🚗 Transport & Bensin</option>
+                  <option value="Konsumsi & Meeting">🍽️ Konsumsi & Meeting</option>
+                  <option value="Pembelian Alat / Software">💻 Alat & Software</option>
+                  <option value="Iklan & Marketing">📢 Iklan & Marketing</option>
+                  <option value="Medis & Kesehatan">🏥 Medis & Kesehatan</option>
+                  <option value="Lainnya">📦 Lainnya</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-zinc-300 mb-1">Judul Keperluan *</label>
+              <input type="text" id="formTitle" required placeholder="Contoh: Bensin & Tol Kunjungan Klien Jakarta" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-zinc-300 mb-1">Nominal (Rp) *</label>
+                <input type="number" id="formAmount" required min="1000" step="500" placeholder="250000" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-zinc-300 mb-1">Tanggal Transaksi *</label>
+                <input type="date" id="formDate" required class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-zinc-300 mb-1">Rekening Tujuan Pencairan *</label>
+              <input type="text" id="formBank" required placeholder="Contoh: BCA 8720192819 a/n Budi Santoso" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-medium text-zinc-300 mb-1">Rincian / Catatan Tambahan</label>
+              <textarea id="formDescription" rows="2" placeholder="Jelaskan detail pengeluaran..." class="w-full px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500"></textarea>
+            </div>
+
+            <!-- Upload Foto Struk / Bukti -->
+            <div>
+              <label class="block text-xs font-medium text-zinc-300 mb-1">Upload Foto Struk / Nota Bukti (Tersimpan ke Google Drive)</label>
+              <label for="formReceipt" class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-zinc-700 hover:border-indigo-500 rounded-2xl cursor-pointer bg-zinc-900/50 transition relative overflow-hidden">
+                <div id="receiptUploadPlaceholder" class="flex flex-col items-center justify-center pt-4 pb-4 text-center px-3">
+                  <i data-lucide="camera" class="w-6 h-6 text-indigo-400 mb-1.5"></i>
+                  <p class="text-xs text-zinc-300 font-medium">Ketuk untuk ambil foto / pilih gambar struk</p>
+                  <p class="text-[10px] text-zinc-500 mt-0.5">Otomatis diunggah ke folder Google Drive Anda</p>
+                </div>
+                <img id="receiptPreviewImg" src="" alt="Preview Struk" class="hidden w-full h-full object-cover" />
+                <input id="formReceipt" type="file" accept="image/*" class="hidden" onchange="handleReceiptUpload(event)" />
+              </label>
+            </div>
+
+            <button type="submit" id="btnSubmitForm" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2">
+              <i data-lucide="send" class="w-4 h-4"></i>
+              <span>Kirim Pengajuan Reimbursement</span>
+            </button>
+          </form>
+        </div>
+      </section>
+
+
+      <!-- ==================================================== -->
+      <!-- VIEW 3: INTEGRASI GOOGLE SHEETS, LAPORAN & PIN       -->
+      <!-- ==================================================== -->
+      <section id="view-reports" class="hidden space-y-4 pb-6">
+
+        <!-- KONEKSI GOOGLE SHEETS & GOOGLE DRIVE -->
+        <div class="glass-card rounded-2xl p-4 space-y-3.5 border border-emerald-500/30 bg-gradient-to-b from-emerald-950/25 to-zinc-900/90">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                <i data-lucide="database" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-bold text-white">Integrasi Google Sheets & Google Drive</h3>
+                <p class="text-[11px] text-zinc-400">Simpan semua pengajuan & foto struk di Google Drive Anda</p>
+              </div>
+            </div>
+            <button onclick="openScriptGuideModal()" class="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold hover:bg-emerald-500/25 transition">
+              📖 Cara Pasang
+            </button>
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block text-[11px] font-medium text-zinc-300">Google Apps Script Web App URL (<code class="text-emerald-400">https://script.google.com/.../exec</code>)</label>
+            <input 
+              type="url" 
+              id="gsheetWebhookInput" 
+              placeholder="Tempel Web App URL dari Google Sheets Anda di sini..." 
+              class="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div class="space-y-1.5">
+            <label class="block text-[11px] font-medium text-zinc-300">Link Google Sheet Anda (Opsional - Untuk Tombol Pintasan Buka Sheet)</label>
+            <input 
+              type="url" 
+              id="gsheetDocUrlInput" 
+              placeholder="https://docs.google.com/spreadsheets/d/..." 
+              class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+            />
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 pt-1">
+            <button onclick="saveGoogleSheetConfig()" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
+              <i data-lucide="check" class="w-4 h-4"></i>
+              Simpan & Hubungkan
+            </button>
+            <button onclick="pushAllLocalToGoogleSheets()" id="btnPushAll" class="py-2.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 font-semibold text-xs flex items-center justify-center gap-1.5 transition">
+              <i data-lucide="upload-cloud" class="w-4 h-4 text-emerald-400"></i>
+              Upload Data ke Sheet
+            </button>
+          </div>
+
+          <div id="openSheetShortcut" class="hidden pt-2 border-t border-zinc-800/80 flex items-center justify-between">
+            <span class="text-[11px] text-emerald-400 flex items-center gap-1">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> Terhubung ke Google Sheets
+            </span>
+            <a id="openSheetLink" href="#" target="_blank" class="text-[11px] font-bold text-indigo-400 hover:underline flex items-center gap-1">
+              Buka Spreadsheet di Drive ↗
+            </a>
+          </div>
+        </div>
+
+        <!-- Ringkasan Per Kategori -->
+        <div class="glass-card rounded-2xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Rekapitulasi Per Kategori</h3>
+            <span class="text-[11px] text-indigo-400 font-medium">Realtime</span>
+          </div>
+          <div id="categoryBreakdownList" class="space-y-2.5"></div>
+        </div>
+
+        <!-- Ringkasan Per Anggota -->
+        <div class="glass-card rounded-2xl p-4 space-y-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-400">Rekapitulasi Per Anggota Tim</h3>
+          <div id="memberBreakdownList" class="space-y-2"></div>
+        </div>
+
+        <!-- PANEL KONTROL AKSES PENGGUNA (DARI LAPTOP OWNER) -->
+        <div id="userAccessControlSection" class="glass-card rounded-2xl p-4 space-y-3.5 border border-indigo-500/30 bg-gradient-to-b from-indigo-950/30 to-zinc-900/90">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                <i data-lucide="shield-alert" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <h3 class="text-xs font-bold text-white">Daftar Akses Pengguna Resmi (Whitelist)</h3>
+                <p class="text-[11px] text-zinc-400">Hanya pengguna aktif di bawah ini yang bisa login dari HP mereka</p>
+              </div>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
+              Tersinkron ke Tab Users
+            </span>
+          </div>
+
+          <!-- Form Tambah Pengguna Baru -->
+          <form onsubmit="handleAddAuthorizedUser(event)" class="p-3 rounded-xl bg-zinc-950/90 border border-zinc-800 space-y-2.5">
+            <p class="text-[11px] font-bold text-indigo-300">+ Berikan Akses ke Pengguna / HP Baru</p>
+            <div class="grid grid-cols-2 gap-2">
+              <input type="text" id="newUserName" required placeholder="Nama Lengkap (misal: Andi)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              <input type="text" id="newUserUsername" required placeholder="ID Login (misal: andi)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+              <input type="text" id="newUserDivision" required placeholder="Divisi (misal: Sales)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              <select id="newUserRole" class="px-2.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500">
+                <option value="MEMBER">Anggota (Requester)</option>
+                <option value="APPROVER">Approver</option>
+                <option value="ADMIN">Owner / Admin</option>
+              </select>
+              <input type="text" id="newUserCode" required placeholder="Kode PIN (4-6 digit)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            </div>
+            <button type="submit" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">
+              + Tambahkan & Beri Akses Login
+            </button>
+          </form>
+
+          <!-- Daftar Pengguna Terdaftar -->
+          <div id="authorizedUsersList" class="space-y-2"></div>
+        </div>
+
+        <!-- Keamanan PIN Approver -->
+        <div class="glass-card rounded-2xl p-4 space-y-3 border border-indigo-500/20">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
+              <i data-lucide="lock" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-white">Pengaturan PIN Keamanan Approver</h3>
+              <p class="text-[11px] text-zinc-400">PIN diperlukan untuk menyetujui atau menolak pengajuan (Default: <code class="text-indigo-300">1234</code>)</p>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <input type="password" id="newPinInput" maxlength="6" placeholder="Masukkan PIN Baru (4-6 angka)" class="flex-1 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+            <button onclick="updateApproverPin()" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold text-white transition">
+              Simpan PIN
+            </button>
+          </div>
+          <div class="pt-2 border-t border-zinc-800/80 flex justify-between items-center">
+            <span class="text-[11px] text-zinc-500">Ingin mereset data contoh awal?</span>
+            <button onclick="resetDemoData()" class="text-[11px] text-rose-400 hover:underline font-medium">Reset Data Demo</button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+
+    <!-- ========================================== -->
+    <!-- BOTTOM NAVIGATION BAR (MOBILE FIRST)       -->
+    <!-- ========================================== -->
+    <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-30 bottom-nav-blur px-6 py-2.5 flex items-center justify-around">
+      <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center gap-1 text-indigo-400 transition">
+        <div class="relative">
+          <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+          <span id="navPendingBadge" class="absolute -top-1.5 -right-2.5 px-1.5 py-0.2 bg-amber-500 text-zinc-950 font-extrabold text-[9px] rounded-full">0</span>
+        </div>
+        <span class="text-[10px] font-semibold">Approval</span>
+      </button>
+
+      <button onclick="switchTab('form')" id="nav-form" class="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 transition">
+        <div class="w-10 h-10 -mt-5 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 border-2 border-zinc-950">
+          <i data-lucide="plus" class="w-5 h-5"></i>
+        </div>
+        <span class="text-[10px] font-semibold">Ajukan</span>
+      </button>
+
+      <button onclick="switchTab('reports')" id="nav-reports" class="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 transition">
+        <i data-lucide="sheet" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold">Sheets & Rekap</span>
+      </button>
+    </nav>
+
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- MODAL PANDUAN 1-MENIT PASANG GOOGLE SHEETS & DRIVE       -->
+  <!-- ======================================================== -->
+  <div id="scriptGuideModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="w-full max-w-md bg-zinc-900 border border-zinc-800 rounded-3xl p-5 max-h-[88vh] overflow-y-auto space-y-4 animate-slide-up">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="sheet" class="w-5 h-5 text-emerald-400"></i>
+          <h3 class="text-sm font-bold text-white">Panduan Hubungkan Google Sheets</h3>
+        </div>
+        <button onclick="closeScriptGuideModal()" class="p-1.5 rounded-xl bg-zinc-800 text-zinc-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <ol class="text-xs text-zinc-300 space-y-2.5 list-decimal list-inside leading-relaxed">
+        <li>Buka <b>Google Drive</b> Anda dan buat file <b>Google Sheets</b> baru (atau buka Sheet yang sudah ada).</li>
+        <li>Pada menu bagian atas Google Sheets, klik <b>Extensions (Ekstensi)</b> → <b>Apps Script</b>.</li>
+        <li>Hapus kode bawaan, lalu klik tombol <b>Salin Kode Apps Script</b> di bawah ini dan tempelkan (Paste) ke editor Apps Script.</li>
+        <li>Klik tombol <b>Deploy</b> (di kanan atas) → <b>New deployment</b>.</li>
+        <li>Pilih jenis <b>Web app</b>:
+          <ul class="list-disc list-inside pl-4 mt-1 text-[11px] text-zinc-400">
+            <li>Execute as: <b>Me (Email Anda)</b></li>
+            <li>Who has access: <b>Anyone (Siapa saja)</b></li>
+          </ul>
+        </li>
+        <li>Klik <b>Deploy</b>, setujui izin akses (Authorize), lalu salin <b>Web App URL</b> (berakhiran <code class="text-emerald-400">/exec</code>) dan tempelkan ke kolom di halaman <b>Sheets & Rekap</b>.</li>
+      </ol>
+
+      <div class="p-3 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-semibold text-zinc-400">File: google-apps-script.js</span>
+          <button onclick="copyAppsScriptCode()" class="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition">
+            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+            Salin Kode Apps Script
+          </button>
+        </div>
+        <p class="text-[10px] text-zinc-500">Kode ini otomatis membuat tabel di Google Sheets Anda serta menyimpan foto struk ke folder <b>ApproveHub_Receipts</b> di Google Drive Anda.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- MODAL DETAIL PENGAJUAN & TINDAKAN APPROVAL (BOTTOM SHEET)-->
+  <!-- ======================================================== -->
+  <div id="detailModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-end justify-center">
+    <div class="w-full max-w-md bg-zinc-900 border-t border-zinc-800 rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto animate-slide-up space-y-4">
+      <div class="w-12 h-1.5 bg-zinc-700 rounded-full mx-auto -mt-1 mb-1"></div>
+
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <span id="modalCategoryBadge" class="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">Kategori</span>
+          <h3 id="modalTitle" class="text-base font-bold text-white mt-1.5">Judul Pengajuan</h3>
+          <p id="modalIdDate" class="text-[11px] text-zinc-400">#REQ-001 • 21 Nov 2026</p>
+        </div>
+        <button onclick="closeDetailModal()" class="p-1.5 rounded-xl bg-zinc-800 text-zinc-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 flex items-center justify-between">
+        <div>
+          <p class="text-[11px] text-zinc-400">Nominal Diajukan</p>
+          <p id="modalAmount" class="text-xl font-extrabold text-white">Rp 0</p>
+        </div>
+        <div id="modalStatusBadge"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2.5 text-xs">
+        <div class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80">
+          <p class="text-[10px] text-zinc-500">Diajukan Oleh</p>
+          <p id="modalRequester" class="font-semibold text-zinc-200 mt-0.5">-</p>
+          <p id="modalRole" class="text-[11px] text-zinc-400">-</p>
+        </div>
+        <div class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80">
+          <p class="text-[10px] text-zinc-500">Rekening Pencairan</p>
+          <p id="modalBank" class="font-semibold text-zinc-200 mt-0.5 break-words">-</p>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl bg-zinc-950/70 border border-zinc-800/80 text-xs">
+        <p class="text-[10px] text-zinc-500 mb-1">Rincian / Keterangan Anggota</p>
+        <p id="modalDescription" class="text-zinc-300 leading-relaxed">-</p>
+      </div>
+
+      <div class="space-y-1.5">
+        <p class="text-[11px] font-semibold text-zinc-400 flex items-center gap-1.5">
+          <i data-lucide="receipt" class="w-3.5 h-3.5 text-indigo-400"></i>
+          Lampiran Bukti Struk / Nota
+        </p>
+        <div class="rounded-2xl overflow-hidden border border-zinc-800 bg-zinc-950 max-h-56 flex items-center justify-center">
+          <img id="modalReceiptImg" src="" alt="Struk Bukti" class="w-full h-52 object-cover cursor-pointer" onclick="window.open(this.src, '_blank')" />
+        </div>
+      </div>
+
+      <div id="approverNoteContainer" class="space-y-1.5">
+        <label class="block text-[11px] font-semibold text-zinc-300">Catatan Approver (Tersimpan ke Google Sheets)</label>
+        <textarea id="modalApproverNote" rows="2" placeholder="Tulis catatan untuk anggota (misal: Sudah ditransfer / Mohon lampirkan nota asli)..." class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500"></textarea>
+      </div>
+
+      <div id="approverActionButtons" class="grid grid-cols-3 gap-2 pt-2">
+        <button onclick="handleDecision('REJECTED')" class="py-2.5 px-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-400 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95">
+          <i data-lucide="x-circle" class="w-4 h-4"></i>
+          Tolak
+        </button>
+        <button onclick="handleDecision('REVISION')" class="py-2.5 px-3 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95">
+          <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+          Revisi
+        </button>
+        <button onclick="handleDecision('APPROVED')" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/25 transition active:scale-95">
+          <i data-lucide="check-circle" class="w-4 h-4"></i>
+          Setujui
+        </button>
+      </div>
+
+      <div id="memberModeNotice" class="hidden p-3 rounded-xl bg-zinc-800/70 text-center text-[11px] text-zinc-400">
+        Anda sedang dalam <b>Mode Anggota</b>. Beralih ke <b>Mode Approver</b> di pojok kanan atas untuk memberikan keputusan.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- GERBANG LOGIN KEAMANAN (GATEKEEPER ACCESS CONTROL)       -->
+  <!-- ======================================================== -->
+  <div id="loginGateOverlay" class="fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-xl hidden items-center justify-center p-4">
+    <div class="w-full max-w-sm glass-card rounded-3xl p-6 border border-indigo-500/30 space-y-5 shadow-2xl">
+      <div class="text-center space-y-2">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center mx-auto shadow-lg shadow-indigo-500/30">
+          <i data-lucide="lock" class="w-6 h-6 text-white"></i>
+        </div>
+        <h2 class="text-base font-extrabold text-white">Akses Terbatas — ApproveHub</h2>
+        <p class="text-xs text-zinc-400">Hanya pengguna yang telah diberikan izin akses oleh Administrator yang dapat membuka dashboard ini.</p>
+      </div>
+
+      <form onsubmit="handleGateLogin(event)" class="space-y-3">
+        <div>
+          <label class="block text-[11px] font-semibold text-zinc-300 mb-1">ID Login / Nama Pengguna</label>
+          <input type="text" id="gateUsernameInput" required placeholder="Contoh: owner / finance / rizky" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-zinc-300 mb-1">Kode Akses / PIN Resmi</label>
+          <input type="password" id="gateCodeInput" required placeholder="Masukkan Kode PIN Anda" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+        </div>
+        <p id="gateErrorMsg" class="hidden text-[11px] text-rose-400 font-semibold text-center"></p>
+        <button type="submit" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition">
+          Masuk ke Dashboard
+        </button>
+      </form>
+
+      <div class="pt-3 border-t border-zinc-800/80 text-center">
+        <p class="text-[10px] text-zinc-500">Hubungi Owner / Admin untuk mendapatkan ID Login & Kode PIN.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- MODAL SWITCH ROLE / USER PROFILE & LOGOUT                -->
+  <!-- ======================================================== -->
+  <div id="roleModal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden items-center justify-center p-4">
+    <div class="w-full max-w-xs bg-zinc-900 border border-zinc-800 rounded-3xl p-5 space-y-4 animate-slide-up">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white">Akun & Mode Akses</h3>
+        <button onclick="closeRoleModal()" class="p-1 rounded-lg bg-zinc-800 text-zinc-400">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Info Pengguna Saat Ini -->
+      <div class="p-3 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-1">
+        <p class="text-[10px] text-zinc-500">Login Saat Ini Sebagai:</p>
+        <p id="activeUserNameLabel" class="text-xs font-extrabold text-white">Owner / Admin Utama</p>
+        <p id="activeUserRoleLabel" class="text-[11px] text-indigo-400 font-semibold">Board of Director • ADMIN</p>
+      </div>
+
+      <div class="space-y-2">
+        <button onclick="openLoginGateForSwitch()" class="w-full py-2.5 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition">
+          <i data-lucide="log-in" class="w-4 h-4"></i>
+          Ganti Akun Pengguna Lain
+        </button>
+        <button onclick="logoutAndLock()" class="w-full py-2.5 px-3 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+          <i data-lucide="lock" class="w-4 h-4"></i>
+          Kunci Layar (Logout)
+        </button>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-zinc-900 border border-indigo-500/40 text-white text-xs font-semibold shadow-2xl hidden items-center gap-2">
+    <span id="toastText">Berhasil disimpan</span>
+  </div>
+
+
+  <!-- ======================================================== -->
+  <!-- APPLICATION LOGIC + GOOGLE SHEETS SYNC                   -->
+  <!-- ======================================================== -->
+  <script>
+    const STORAGE_KEY = 'approvehub_requests_v1';
+    const USERS_STORAGE_KEY = 'approvehub_authorized_users_v1';
+    const ACTIVE_USER_KEY = 'approvehub_active_session_v1';
+    const PIN_KEY = 'approvehub_pin_v1';
+    const GSHEET_WEBHOOK_KEY = 'approvehub_gsheet_webhook_v1';
+    const GSHEET_DOC_URL_KEY = 'approvehub_gsheet_doc_url_v1';
+    const DEFAULT_SHEET_DOC_URL = 'https://docs.google.com/spreadsheets/d/13VKXAytIX7VG7OAPCzNegKi8l4NGZe2FXa-tuZd-_Bo/edit';
+    const LOCAL_BRIDGE_API = 'http://localhost:3456/api/sheets';
+
+    const DEFAULT_AUTHORIZED_USERS = [
+      { userId: 'USR-01', username: 'owner', name: 'Owner / Admin Utama', division: 'Board of Director', role: 'ADMIN', accessCode: '1234', active: true },
+      { userId: 'USR-02', username: 'finance', name: 'Manager Keuangan', division: 'Finance & Accounting', role: 'APPROVER', accessCode: '2222', active: true },
+      { userId: 'USR-03', username: 'rizky', name: 'Rizky Pratama', division: 'Field Sales & Marketing', role: 'MEMBER', accessCode: '1111', active: true },
+      { userId: 'USR-04', username: 'nadia', name: 'Nadia Putri', division: 'Creative & Social Media', role: 'MEMBER', accessCode: '3333', active: true },
+      { userId: 'USR-05', username: 'dimas', name: 'Dimas Wijaya', division: 'Partnership Lead', role: 'MEMBER', accessCode: '4444', active: true },
+      { userId: 'USR-06', username: 'siti', name: 'Siti Rahmawati', division: 'Admin & GA', role: 'MEMBER', accessCode: '5555', active: true }
+    ];
+
+    let currentRole = 'APPROVER';
+    let currentUser = null;
+    let currentFilter = 'ALL';
+    let selectedRequestId = null;
+    let uploadedReceiptDataUrl = '';
+    let isBridgeConnected = false;
+
+    function createReceiptPlaceholder(title, amount, date, merchant) {
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400">
+        <rect width="600" height="400" fill="#18181b"/>
+        <rect x="130" y="24" width="340" height="352" rx="12" fill="#fafafa" stroke="#e4e4e7" stroke-width="2"/>
+        <text x="300" y="65" font-family="monospace" font-size="18" font-weight="bold" fill="#18181b" text-anchor="middle">${merchant}</text>
+        <text x="300" y="88" font-family="monospace" font-size="12" fill="#71717a" text-anchor="middle">BUKTI TRANSAKSI RESMI</text>
+        <line x1="155" y1="105" x2="445" y2="105" stroke="#d4d4d8" stroke-dasharray="4"/>
+        <text x="160" y="138" font-family="monospace" font-size="13" fill="#3f3f46">TANGGAL : ${date}</text>
+        <text x="160" y="168" font-family="monospace" font-size="13" fill="#3f3f46">ITEM    : ${title.substring(0, 24)}</text>
+        <line x1="155" y1="200" x2="445" y2="200" stroke="#d4d4d8" stroke-dasharray="4"/>
+        <text x="160" y="240" font-family="monospace" font-size="16" font-weight="bold" fill="#18181b">TOTAL BAYAR:</text>
+        <text x="440" y="240" font-family="monospace" font-size="18" font-weight="bold" fill="#4f46e5" text-anchor="end">${amount}</text>
+        <rect x="210" y="285" width="180" height="44" rx="8" fill="#dcfce7" stroke="#22c55e"/>
+        <text x="300" y="313" font-family="sans-serif" font-size="14" font-weight="bold" fill="#15803d" text-anchor="middle">LUNAS / PAID</text>
+      </svg>`;
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    }
+
+    const INITIAL_DEMO_DATA = [
+      {
+        id: 'REQ-2401',
+        requester: 'Rizky Pratama',
+        role: 'Field Sales & Marketing',
+        category: 'Operasional & Transport',
+        title: 'Bensin, Tol & Parkir Kunjungan 4 Klien Jabodetabek',
+        amount: 385000,
+        date: '2026-11-21',
+        bank: 'BCA 5240918271 a/n Rizky Pratama',
+        description: 'Kunjungan presentasi produk ke PT Sinar Mas, CV Mitra Abadi, dan 2 toko cabang di Tangerang.',
+        status: 'PENDING',
+        approverNote: '',
+        receiptUrl: createReceiptPlaceholder('Bensin & Tol Operasional', 'Rp 385.000', '21 Nov 2026', 'PERTAMINA & JASA MARGA')
+      },
+      {
+        id: 'REQ-2402',
+        requester: 'Nadia Putri',
+        role: 'Creative & Social Media',
+        category: 'Pembelian Alat / Software',
+        title: 'Perpanjangan Langganan Canva Pro & CapCut Tim',
+        amount: 450000,
+        date: '2026-11-20',
+        bank: 'Mandiri 1330019283712 a/n Nadia Putri',
+        description: 'Langganan bulanan aset desain grafis dan produksi konten reels bulan November.',
+        status: 'PENDING',
+        approverNote: '',
+        receiptUrl: createReceiptPlaceholder('Canva Pro & CapCut', 'Rp 450.000', '20 Nov 2026', 'INVOICE DIGITAL CREATIVE')
+      },
+      {
+        id: 'REQ-2403',
+        requester: 'Dimas Wijaya',
+        role: 'Partnership Lead',
+        category: 'Konsumsi & Meeting',
+        title: 'Jamuan Makan Siang Meeting Vendor Logistik',
+        amount: 620000,
+        date: '2026-11-19',
+        bank: 'BRI 039201002918301 a/n Dimas Wijaya',
+        description: 'Meeting negosiasi kontrak pengiriman tahunan bersama 4 perwakilan vendor.',
+        status: 'PENDING',
+        approverNote: '',
+        receiptUrl: createReceiptPlaceholder('Meeting Lunch 6 Pax', 'Rp 620.000', '19 Nov 2026', 'RESTO BUMI SENAYAN')
+      },
+      {
+        id: 'REQ-2398',
+        requester: 'Siti Rahmawati',
+        role: 'Admin & GA',
+        category: 'Lainnya',
+        title: 'Pembelian ATK Kantor & Kertas Printer A4 (5 Rim)',
+        amount: 275000,
+        date: '2026-11-17',
+        bank: 'BCA 7190283910 a/n Siti Rahmawati',
+        description: 'Stok kertas HVS 80gr, tinta spidol papan tulis, dan map dokumen.',
+        status: 'APPROVED',
+        approverNote: 'Disetujui, dana sudah ditransfer via BCA.',
+        receiptUrl: createReceiptPlaceholder('ATK & Kertas A4 5 Rim', 'Rp 275.000', '17 Nov 2026', 'GRAMEDIA / ATK STORE')
+      }
+    ];
+
+    function getWebhookUrl() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramApi = urlParams.get('api');
+      if (paramApi) {
+        localStorage.setItem(GSHEET_WEBHOOK_KEY, paramApi.trim());
+        return paramApi.trim();
+      }
+      const saved = (localStorage.getItem(GSHEET_WEBHOOK_KEY) || '').trim();
+      if (saved) return saved;
+      if (window.location.port === '3456') return '/api/sheets';
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return LOCAL_BRIDGE_API;
+      }
+      return '';
+    }
+
+    function getSheetDocUrl() {
+      return (localStorage.getItem(GSHEET_DOC_URL_KEY) || '').trim() || DEFAULT_SHEET_DOC_URL;
+    }
+
+    function updateGoogleSheetConnectionIndicator() {
+      const url = getWebhookUrl();
+      const docUrl = getSheetDocUrl();
+      const dot = document.getElementById('gsheetStatusDot');
+      const txt = document.getElementById('gsheetStatusText');
+      const banner = document.getElementById('gsheetSetupBanner');
+      const shortcut = document.getElementById('openSheetShortcut');
+      const link = document.getElementById('openSheetLink');
+
+      document.getElementById('gsheetWebhookInput').value = url;
+      document.getElementById('gsheetDocUrlInput').value = docUrl;
+
+      if (isBridgeConnected || url) {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
+        txt.textContent = 'Google Sheets Terhubung (Live Sync)';
+        txt.className = 'text-[10px] text-emerald-400 font-medium';
+        banner.classList.add('hidden');
+        shortcut.classList.remove('hidden');
+        if (docUrl) {
+          link.href = docUrl;
+          link.classList.remove('hidden');
+        }
+      } else {
+        dot.className = 'w-1.5 h-1.5 rounded-full bg-zinc-500';
+        txt.textContent = 'Mode Lokal (Belum terhubung Sheet)';
+        txt.className = 'text-[10px] text-zinc-400';
+        banner.classList.remove('hidden');
+        shortcut.classList.add('hidden');
+      }
+    }
+
+    async function saveGoogleSheetConfig() {
+      const url = document.getElementById('gsheetWebhookInput').value.trim();
+      const docUrl = document.getElementById('gsheetDocUrlInput').value.trim();
+      localStorage.setItem(GSHEET_WEBHOOK_KEY, url);
+      localStorage.setItem(GSHEET_DOC_URL_KEY, docUrl);
+      updateGoogleSheetConnectionIndicator();
+
+      if (url) {
+        showToast('🔄 Menguji koneksi ke Google Sheets...');
+        await fetchFromGoogleSheets(true);
+      } else {
+        showToast('Disimpan dalam Mode Lokal');
+      }
+    }
+
+    async function fetchFromGoogleSheets(showNotification = false) {
+      const url = getWebhookUrl();
+      if (!url) return;
+
+      const icon = document.getElementById('refreshIcon');
+      if (icon) icon.classList.add('animate-spin');
+
+      try {
+        const res = await fetch(url);
+        const json = await res.json();
+        if (json && json.ok && Array.isArray(json.data)) {
+          isBridgeConnected = true;
+          updateGoogleSheetConnectionIndicator();
+          if (Array.isArray(json.users) && json.users.length > 0) {
+            saveAuthorizedUsers(json.users);
+            renderAuthorizedUsersList();
+          }
+          if (json.data.length > 0) {
+            const existing = getRequests();
+            const merged = json.data.map(row => {
+              const prev = existing.find(e => String(e.id) === String(row.id));
+              return {
+                ...row,
+                receiptUrl: row.receiptUrl || (prev && prev.receiptUrl) || createReceiptPlaceholder(row.title || 'Reimbursement', formatRupiah(row.amount), row.date, 'BUKTI TRANSAKSI')
+              };
+            });
+            saveRequests(merged);
+            renderRequests();
+            renderReports();
+            if (showNotification) showToast('✅ Tersinkronisasi langsung dengan Google Sheets!');
+          }
+        }
+      } catch (err) {
+        if (showNotification) showToast('⚠️ Server sinkronisasi belum aktif.');
+      } finally {
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    }
+
+    async function pushAllLocalToGoogleSheets() {
+      await fetchFromGoogleSheets(true);
+    }
+
+    async function sendActionToGoogleSheets(payload) {
+      const url = getWebhookUrl();
+      if (!url) return;
+      const isLocalBridge = url.includes('localhost:3456') || url.startsWith('/api/sheets');
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: isLocalBridge ? 'cors' : 'no-cors',
+          headers: { 'Content-Type': isLocalBridge ? 'application/json' : 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+      } catch (err) {
+        console.warn('Gagal sinkronisasi latar belakang ke Google Sheets:', err);
+      }
+    }
+
+    function getRequests() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DEMO_DATA));
+        return INITIAL_DEMO_DATA;
+      }
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return INITIAL_DEMO_DATA;
+      }
+    }
+
+    function saveRequests(list) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function getApproverPin() {
+      return localStorage.getItem(PIN_KEY) || '1234';
+    }
+
+    function formatRupiah(num) {
+      return 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+    }
+
+    function getStatusBadgeHTML(status) {
+      switch (status) {
+        case 'PENDING':
+          return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">⏳ Menunggu</span>`;
+        case 'APPROVED':
+          return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">✅ Disetujui</span>`;
+        case 'REVISION':
+          return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-sky-500/15 text-sky-300 border border-sky-500/30 flex items-center gap-1">🔄 Revisi</span>`;
+        case 'REJECTED':
+          return `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-300 border border-rose-500/30 flex items-center gap-1">❌ Ditolak</span>`;
+        default:
+          return '';
+      }
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastText').textContent = msg;
+      toast.classList.remove('hidden');
+      toast.classList.add('flex');
+      setTimeout(() => {
+        toast.classList.add('hidden');
+        toast.classList.remove('flex');
+      }, 2800);
+    }
+
+    function renderRequests() {
+      const list = getRequests();
+      const search = (document.getElementById('searchInput').value || '').toLowerCase();
+
+      const pending = list.filter(r => r.status === 'PENDING');
+      const approved = list.filter(r => r.status === 'APPROVED');
+      const pendingSum = pending.reduce((a, b) => a + Number(b.amount), 0);
+      const approvedSum = approved.reduce((a, b) => a + Number(b.amount), 0);
+      const totalAllSum = list.reduce((a, b) => a + Number(b.amount), 0);
+
+      document.getElementById('statPendingCount').textContent = pending.length + ' Request';
+      document.getElementById('statPendingAmount').textContent = formatRupiah(pendingSum);
+      document.getElementById('statApprovedCount').textContent = approved.length + ' Request';
+      document.getElementById('statApprovedAmount').textContent = formatRupiah(approvedSum);
+      document.getElementById('statTotalAllAmount').textContent = formatRupiah(totalAllSum);
+      document.getElementById('navPendingBadge').textContent = pending.length;
+
+      const filtered = list.filter(item => {
+        const matchesStatus = currentFilter === 'ALL' || item.status === currentFilter;
+        const matchesSearch =
+          (item.requester || '').toLowerCase().includes(search) ||
+          (item.title || '').toLowerCase().includes(search) ||
+          (item.category || '').toLowerCase().includes(search) ||
+          (item.id || '').toLowerCase().includes(search);
+        return matchesStatus && matchesSearch;
+      });
+
+      const container = document.getElementById('requestsList');
+      if (filtered.length === 0) {
+        container.innerHTML = `
+          <div class="glass-card rounded-2xl p-8 text-center space-y-2">
+            <p class="text-sm font-bold text-zinc-300">Tidak ada pengajuan ditemukan</p>
+            <p class="text-xs text-zinc-500">Coba ubah filter status atau kata kunci pencarian Anda.</p>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = filtered.map((item, index) => {
+        const safeNote = (item.approverNote || '').replace(/"/g, '&quot;');
+        return `
+        <div class="glass-card rounded-2xl p-3.5 hover:border-zinc-700 transition">
+          <div class="flex items-start gap-3">
+            <!-- Nomor Urut Request -->
+            <div onclick="openDetailModal('${item.id}')" class="w-8 h-8 rounded-xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center font-extrabold text-xs text-indigo-300 shrink-0 mt-0.5 cursor-pointer" title="Nomor Urut #${index + 1}">
+              ${index + 1}
+            </div>
+
+            <!-- Informasi Request & Kolom Input Keterangan -->
+            <div class="flex-1 min-w-0 space-y-2">
+              <div class="cursor-pointer" onclick="openDetailModal('${item.id}')">
+                <div class="flex items-center flex-wrap gap-1.5">
+                  <span class="text-xs font-bold text-white">${item.requester}</span>
+                  <span class="text-[10px] text-zinc-400">(${item.role})</span>
+                  <span class="text-[10px] text-zinc-500">• ${item.date}</span>
+                  ${getStatusBadgeHTML(item.status)}
+                </div>
+                <p class="text-xs font-semibold text-zinc-100 mt-1 leading-snug">${item.title}</p>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-sm font-extrabold text-indigo-400">${formatRupiah(item.amount)}</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-400">${item.category}</span>
+                  <span class="text-[10px] text-zinc-400 underline hover:text-indigo-300">Lihat Bukti/Detail</span>
+                </div>
+              </div>
+
+              <!-- Kolom Input Keterangan Langsung -->
+              <div class="pt-1">
+                <input
+                  type="text"
+                  id="note-input-${item.id}"
+                  value="${safeNote}"
+                  ${currentRole !== 'APPROVER' ? 'disabled' : ''}
+                  placeholder="Isi keterangan / catatan persetujuan di sini..."
+                  onchange="saveInlineNote('${item.id}', this.value)"
+                  class="w-full px-3 py-1.5 rounded-xl bg-zinc-950/90 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-100 placeholder-zinc-500"
+                />
+              </div>
+            </div>
+
+            <!-- Tombol Setuju & Tolak di Samping Kanan -->
+            <div class="flex flex-col gap-1.5 shrink-0 justify-center">
+              ${currentRole === 'APPROVER' ? `
+                <button
+                  onclick="quickDecision('${item.id}', 'APPROVED')"
+                  class="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                    item.status === 'APPROVED'
+                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
+                      : 'bg-emerald-500/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30'
+                  }"
+                >
+                  ✓ Setuju
+                </button>
+                <button
+                  onclick="quickDecision('${item.id}', 'REJECTED')"
+                  class="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+                    item.status === 'REJECTED'
+                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
+                      : 'bg-rose-500/15 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30'
+                  }"
+                >
+                  ✕ Tolak
+                </button>
+              ` : `
+                <button onclick="openDetailModal('${item.id}')" class="px-2.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] text-indigo-400 font-semibold">
+                  Detail
+                </button>
+              `}
+            </div>
+          </div>
+        </div>
+        `;
+      }).join('');
+
+      lucide.createIcons();
+    }
+
+    async function saveInlineNote(id, noteValue) {
+      const list = getRequests();
+      const idx = list.findIndex(r => r.id === id);
+      if (idx === -1) return;
+      list[idx].approverNote = (noteValue || '').trim();
+      saveRequests(list);
+      showToast('📝 Keterangan disimpan ke Google Sheets');
+      await sendActionToGoogleSheets({
+        action: 'UPDATE_STATUS',
+        id: id,
+        status: list[idx].status,
+        approverNote: list[idx].approverNote
+      });
+    }
+
+    function setStatusFilter(status) {
+      currentFilter = status;
+      document.querySelectorAll('.filter-pill').forEach(btn => {
+        btn.className = 'filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-zinc-900 text-zinc-400 border border-zinc-800';
+      });
+      const activeBtn = document.getElementById('filter-' + status);
+      if (activeBtn) {
+        activeBtn.className = 'filter-pill px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition bg-indigo-600 text-white shadow-md shadow-indigo-600/25';
+      }
+      renderRequests();
+    }
+
+    async function quickDecision(id, newStatus) {
+      const list = getRequests();
+      const idx = list.findIndex(r => r.id === id);
+      if (idx === -1) return;
+
+      const noteInput = document.getElementById('note-input-' + id);
+      const typedNote = noteInput ? noteInput.value.trim() : '';
+
+      list[idx].status = newStatus;
+      if (typedNote) {
+        list[idx].approverNote = typedNote;
+      } else if (!list[idx].approverNote) {
+        list[idx].approverNote = newStatus === 'APPROVED' ? 'Disetujui' : 'Ditolak';
+      }
+
+      saveRequests(list);
+      renderRequests();
+      renderReports();
+
+      showToast(newStatus === 'APPROVED' ? '✅ Disetujui & Tersimpan ke Google Sheets!' : '❌ Ditolak & Tersimpan ke Google Sheets');
+      await sendActionToGoogleSheets({
+        action: 'UPDATE_STATUS',
+        id: id,
+        status: newStatus,
+        approverNote: list[idx].approverNote
+      });
+    }
+
+    function openDetailModal(id) {
+      const list = getRequests();
+      const item = list.find(r => r.id === id);
+      if (!item) return;
+      selectedRequestId = id;
+
+      document.getElementById('modalCategoryBadge').textContent = item.category;
+      document.getElementById('modalTitle').textContent = item.title;
+      document.getElementById('modalIdDate').textContent = `#${item.id} • Tanggal: ${item.date}`;
+      document.getElementById('modalAmount').textContent = formatRupiah(item.amount);
+      document.getElementById('modalStatusBadge').innerHTML = getStatusBadgeHTML(item.status);
+      document.getElementById('modalRequester').textContent = item.requester;
+      document.getElementById('modalRole').textContent = item.role;
+      document.getElementById('modalBank').textContent = item.bank;
+      document.getElementById('modalDescription').textContent = item.description || '-';
+      document.getElementById('modalReceiptImg').src = item.receiptUrl || createReceiptPlaceholder(item.title, formatRupiah(item.amount), item.date, 'LAMPIRAN STRUK');
+      document.getElementById('modalApproverNote').value = item.approverNote || '';
+
+      if (currentRole === 'APPROVER') {
+        document.getElementById('approverActionButtons').classList.remove('hidden');
+        document.getElementById('modalApproverNote').disabled = false;
+        document.getElementById('memberModeNotice').classList.add('hidden');
+      } else {
+        document.getElementById('approverActionButtons').classList.add('hidden');
+        document.getElementById('modalApproverNote').disabled = true;
+        document.getElementById('memberModeNotice').classList.remove('hidden');
+      }
+
+      const modal = document.getElementById('detailModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function closeDetailModal() {
+      const modal = document.getElementById('detailModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      selectedRequestId = null;
+    }
+
+    async function handleDecision(newStatus) {
+      if (!selectedRequestId) return;
+      const targetId = selectedRequestId;
+      const list = getRequests();
+      const idx = list.findIndex(r => r.id === targetId);
+      if (idx === -1) return;
+
+      const note = document.getElementById('modalApproverNote').value.trim();
+      const finalNote = note || (
+        newStatus === 'APPROVED' ? 'Disetujui untuk pencairan.' :
+        newStatus === 'REVISION' ? 'Mohon dilengkapi bukti/rinciannya.' :
+        'Pengajuan ditolak.'
+      );
+
+      list[idx].status = newStatus;
+      list[idx].approverNote = finalNote;
+
+      saveRequests(list);
+      closeDetailModal();
+      renderRequests();
+      renderReports();
+
+      const labelMap = {
+        APPROVED: '✅ Disetujui & Tersinkron ke Google Sheets!',
+        REVISION: '🔄 Revisi dikirim & Tersinkron ke Sheets',
+        REJECTED: '❌ Ditolak & Tersinkron ke Sheets'
+      };
+      showToast(labelMap[newStatus]);
+
+      await sendActionToGoogleSheets({
+        action: 'UPDATE_STATUS',
+        id: targetId,
+        status: newStatus,
+        approverNote: finalNote
+      });
+    }
+
+    function handleReceiptUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 700;
+          const scale = img.width > maxW ? maxW / img.width : 1;
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          uploadedReceiptDataUrl = canvas.toDataURL('image/jpeg', 0.72);
+
+          const preview = document.getElementById('receiptPreviewImg');
+          preview.src = uploadedReceiptDataUrl;
+          preview.classList.remove('hidden');
+          document.getElementById('receiptUploadPlaceholder').classList.add('hidden');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function submitNewRequest(e) {
+      e.preventDefault();
+      const name = document.getElementById('formName').value.trim();
+      const role = document.getElementById('formRole').value.trim();
+      const category = document.getElementById('formCategory').value;
+      const title = document.getElementById('formTitle').value.trim();
+      const amount = Number(document.getElementById('formAmount').value);
+      const date = document.getElementById('formDate').value;
+      const bank = document.getElementById('formBank').value.trim();
+      const description = document.getElementById('formDescription').value.trim();
+
+      const list = getRequests();
+      const newId = 'REQ-' + Math.floor(2404 + Math.random() * 900);
+
+      const newEntry = {
+        id: newId,
+        requester: name,
+        role: role,
+        category: category,
+        title: title,
+        amount: amount,
+        date: date,
+        bank: bank,
+        description: description || 'Pengajuan reimbursement operasional.',
+        status: 'PENDING',
+        approverNote: '',
+        receiptUrl: uploadedReceiptDataUrl || createReceiptPlaceholder(title, formatRupiah(amount), date, 'BUKTI NOTA ANGGOTA')
+      };
+
+      list.unshift(newEntry);
+      saveRequests(list);
+
+      const btn = document.getElementById('btnSubmitForm');
+      btn.disabled = true;
+
+      await sendActionToGoogleSheets({
+        action: 'CREATE',
+        item: newEntry
+      });
+
+      btn.disabled = false;
+      document.getElementById('reimburseForm').reset();
+      document.getElementById('formDate').valueAsDate = new Date();
+      uploadedReceiptDataUrl = '';
+      document.getElementById('receiptPreviewImg').classList.add('hidden');
+      document.getElementById('receiptUploadPlaceholder').classList.remove('hidden');
+
+      showToast(getWebhookUrl() ? '🎉 Terkirim ke Dashboard & Google Sheets!' : '🎉 Pengajuan berhasil dikirim!');
+      switchTab('dashboard');
+      setStatusFilter('ALL');
+    }
+
+    function renderReports() {
+      const list = getRequests();
+      const totalSum = list.reduce((a, b) => a + Number(b.amount), 0) || 1;
+
+      const catMap = {};
+      list.forEach(r => {
+        catMap[r.category] = (catMap[r.category] || 0) + Number(r.amount);
+      });
+
+      const catContainer = document.getElementById('categoryBreakdownList');
+      catContainer.innerHTML = Object.entries(catMap)
+        .sort((a, b) => b[1] - a[1])
+        .map(([cat, amt]) => {
+          const pct = Math.round((amt / totalSum) * 100);
+          return `
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <span class="text-zinc-300 font-medium">${cat}</span>
+                <span class="text-white font-bold">${formatRupiah(amt)} (${pct}%)</span>
+              </div>
+              <div class="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+                <div class="h-full bg-indigo-500 rounded-full" style="width: ${pct}%"></div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      const memberMap = {};
+      list.forEach(r => {
+        if (!memberMap[r.requester]) {
+          memberMap[r.requester] = { total: 0, count: 0, role: r.role };
+        }
+        memberMap[r.requester].total += Number(r.amount);
+        memberMap[r.requester].count += 1;
+      });
+
+      const memberContainer = document.getElementById('memberBreakdownList');
+      memberContainer.innerHTML = Object.entries(memberMap)
+        .sort((a, b) => b[1].total - a[1].total)
+        .map(([name, info]) => `
+          <div class="p-3 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-between">
+            <div>
+              <p class="text-xs font-bold text-white">${name}</p>
+              <p class="text-[10px] text-zinc-400">${info.role} • ${info.count} pengajuan</p>
+            </div>
+            <p class="text-xs font-extrabold text-indigo-400">${formatRupiah(info.total)}</p>
+          </div>
+        `).join('');
+    }
+
+    function switchTab(tab) {
+      ['dashboard', 'form', 'reports'].forEach(t => {
+        document.getElementById('view-' + t).classList.add('hidden');
+        const navBtn = document.getElementById('nav-' + t);
+        if (navBtn) {
+          navBtn.classList.remove('text-indigo-400');
+          navBtn.classList.add('text-zinc-500');
+        }
+      });
+
+      document.getElementById('view-' + tab).classList.remove('hidden');
+      const activeNav = document.getElementById('nav-' + tab);
+      if (activeNav) {
+        activeNav.classList.remove('text-zinc-500');
+        activeNav.classList.add('text-indigo-400');
+      }
+
+      if (tab === 'dashboard') renderRequests();
+      if (tab === 'reports') {
+        updateGoogleSheetConnectionIndicator();
+        renderReports();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function openRoleModal() {
+      document.getElementById('pinVerifyInput').value = '';
+      const modal = document.getElementById('roleModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeRoleModal() {
+      const modal = document.getElementById('roleModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function openScriptGuideModal() {
+      const modal = document.getElementById('scriptGuideModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function closeScriptGuideModal() {
+      const modal = document.getElementById('scriptGuideModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function copyAppsScriptCode() {
+      const code = `const SHEET_NAME = 'Requests';
+const DRIVE_FOLDER_NAME = 'ApproveHub_Receipts';
+
+function setupSheet() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+  if (sheet.getLastRow() === 0) {
+    const headers = ['id','date','requester','role','category','title','amount','bank','description','status','approverNote','receiptUrl','updatedAt'];
+    sheet.appendRow(headers);
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#4f46e5').setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function getOrCreateDriveFolder() {
+  const folders = DriveApp.getFoldersByName(DRIVE_FOLDER_NAME);
+  if (folders.hasNext()) return folders.next();
+  const folder = DriveApp.createFolder(DRIVE_FOLDER_NAME);
+  try { folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+  return folder;
+}
+
+function saveBase64ReceiptToDrive(base64DataUrl, requestId) {
+  if (!base64DataUrl || !base64DataUrl.startsWith('data:image/')) return base64DataUrl || '';
+  try {
+    const parts = base64DataUrl.split(',');
+    const mimeMatch = parts[0].match(/data:(.*?);base64/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const blob = Utilities.newBlob(Utilities.base64Decode(parts[1]), mimeType, requestId + '_Struk.' + ext);
+    const file = getOrCreateDriveFolder().createFile(blob);
+    try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {}
+    return 'https://drive.google.com/thumbnail?id=' + file.getId() + '&sz=w1000';
+  } catch (err) { return base64DataUrl; }
+}
+
+function doGet() {
+  const sheet = setupSheet();
+  const rows = sheet.getDataRange().getValues();
+  if (rows.length <= 1) return ContentService.createTextOutput(JSON.stringify({ ok: true, data: [] })).setMimeType(ContentService.MimeType.JSON);
+  const headers = rows[0];
+  const list = [];
+  for (let i = 1; i < rows.length; i++) {
+    if (!rows[i][0]) continue;
+    const obj = {};
+    for (let j = 0; j < headers.length; j++) obj[headers[j]] = rows[i][j];
+    obj.amount = Number(obj.amount || 0);
+    if (obj.date instanceof Date) obj.date = Utilities.formatDate(obj.date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    list.push(obj);
+  }
+  list.reverse();
+  return ContentService.createTextOutput(JSON.stringify({ ok: true, data: list })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function doPost(e) {
+  const sheet = setupSheet();
+  const body = JSON.parse(e.postData.contents);
+  const now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  if (body.action === 'CREATE') {
+    const item = body.item;
+    const receiptUrl = saveBase64ReceiptToDrive(item.receiptUrl, item.id);
+    sheet.appendRow([item.id, item.date, item.requester, item.role, item.category, item.title, Number(item.amount||0), item.bank, item.description||'', item.status||'PENDING', item.approverNote||'', receiptUrl, now]);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, receiptUrl })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (body.action === 'UPDATE_STATUS') {
+    const rows = sheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(body.id)) {
+        sheet.getRange(i + 1, 10).setValue(body.status);
+        sheet.getRange(i + 1, 11).setValue(body.approverNote || '');
+        sheet.getRange(i + 1, 13).setValue(now);
+        break;
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (body.action === 'SYNC_ALL') {
+    const existingIds = new Set(sheet.getDataRange().getValues().slice(1).map(r => String(r[0])));
+    (body.items || []).slice().reverse().forEach(item => {
+      if (!existingIds.has(String(item.id))) {
+        const receiptUrl = saveBase64ReceiptToDrive(item.receiptUrl, item.id);
+        sheet.appendRow([item.id, item.date, item.requester, item.role, item.category, item.title, Number(item.amount||0), item.bank, item.description||'', item.status||'PENDING', item.approverNote||'', receiptUrl, now]);
+      }
+    });
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+}`;
+      navigator.clipboard.writeText(code);
+      showToast('📋 Kode Apps Script berhasil disalin!');
+    }
+
+    function getAuthorizedUsers() {
+      const raw = localStorage.getItem(USERS_STORAGE_KEY);
+      if (!raw) {
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(DEFAULT_AUTHORIZED_USERS));
+        return DEFAULT_AUTHORIZED_USERS;
+      }
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return DEFAULT_AUTHORIZED_USERS;
+      }
+    }
+
+    function saveAuthorizedUsers(users) {
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+    }
+
+    function isLocalOwnerMachine() {
+      const h = window.location.hostname;
+      return h === 'localhost' || h === '127.0.0.1' || window.location.protocol === 'file:';
+    }
+
+    function initAccessControlSession() {
+      const savedSession = localStorage.getItem(ACTIVE_USER_KEY);
+      const users = getAuthorizedUsers();
+
+      if (savedSession) {
+        try {
+          const parsed = JSON.parse(savedSession);
+          const match = users.find(u => u.username.toLowerCase() === (parsed.username || '').toLowerCase() && u.active !== false);
+          if (match) {
+            applyAuthenticatedUser(match);
+            return;
+          }
+        } catch {}
+      }
+
+      // Di laptop Owner (localhost), otomatis masuk sebagai Owner / Admin Utama agar tidak perlu login berulang
+      if (isLocalOwnerMachine()) {
+        const ownerUser = users.find(u => u.role === 'ADMIN') || DEFAULT_AUTHORIZED_USERS[0];
+        applyAuthenticatedUser(ownerUser);
+      } else {
+        // Jika dibuka dari GitHub Pages / HP luar, wajib melewati Gerbang Login
+        showLoginGate();
+      }
+    }
+
+    function applyAuthenticatedUser(user) {
+      currentUser = user;
+      currentRole = (user.role === 'ADMIN' || user.role === 'APPROVER') ? 'APPROVER' : 'MEMBER';
+      localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(user));
+
+      // Auto-fill form jika anggota mengajukan
+      const formNameEl = document.getElementById('formName');
+      const formRoleEl = document.getElementById('formRole');
+      if (formNameEl && !formNameEl.value) formNameEl.value = user.name || '';
+      if (formRoleEl && !formRoleEl.value) formRoleEl.value = user.division || '';
+
+      hideLoginGate();
+      updateRoleUI();
+      renderAuthorizedUsersList();
+    }
+
+    function showLoginGate() {
+      const gate = document.getElementById('loginGateOverlay');
+      gate.classList.remove('hidden');
+      gate.classList.add('flex');
+      lucide.createIcons();
+    }
+
+    function hideLoginGate() {
+      const gate = document.getElementById('loginGateOverlay');
+      gate.classList.add('hidden');
+      gate.classList.remove('flex');
+    }
+
+    function openLoginGateForSwitch() {
+      closeRoleModal();
+      document.getElementById('gateUsernameInput').value = '';
+      document.getElementById('gateCodeInput').value = '';
+      document.getElementById('gateErrorMsg').classList.add('hidden');
+      showLoginGate();
+    }
+
+    function logoutAndLock() {
+      localStorage.removeItem(ACTIVE_USER_KEY);
+      currentUser = null;
+      closeRoleModal();
+      openLoginGateForSwitch();
+      showToast('🔒 Layar berhasil dikunci');
+    }
+
+    function handleGateLogin(e) {
+      e.preventDefault();
+      const uname = document.getElementById('gateUsernameInput').value.trim().toLowerCase();
+      const code = document.getElementById('gateCodeInput').value.trim();
+      const errEl = document.getElementById('gateErrorMsg');
+
+      const users = getAuthorizedUsers();
+      const found = users.find(u =>
+        (String(u.username || '').toLowerCase() === uname || String(u.name || '').toLowerCase() === uname) &&
+        String(u.accessCode || '') === code
+      );
+
+      if (!found) {
+        errEl.textContent = '❌ ID Login atau Kode PIN tidak terdaftar!';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      if (found.active === false || String(found.active).toUpperCase() === 'FALSE') {
+        errEl.textContent = '🚫 Akses akun Anda telah dinonaktifkan oleh Owner!';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      applyAuthenticatedUser(found);
+      showToast(`✅ Selamat datang, ${found.name}!`);
+    }
+
+    function renderAuthorizedUsersList() {
+      const container = document.getElementById('authorizedUsersList');
+      if (!container) return;
+
+      const section = document.getElementById('userAccessControlSection');
+      if (section) {
+        if (currentRole === 'APPROVER') {
+          section.classList.remove('hidden');
+        } else {
+          section.classList.add('hidden');
+        }
+      }
+
+      const users = getAuthorizedUsers();
+      container.innerHTML = users.map(u => {
+        const isActive = u.active !== false && String(u.active).toUpperCase() !== 'FALSE';
+        const roleBadge = (u.role === 'ADMIN' || u.role === 'APPROVER')
+          ? `<span class="px-2 py-0.5 rounded-md bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">${u.role}</span>`
+          : `<span class="px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">REQUESTER</span>`;
+
+        return `
+          <div class="p-3 rounded-xl bg-zinc-900/90 border ${isActive ? 'border-zinc-800' : 'border-rose-500/30 opacity-60'} flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="text-xs font-bold text-white">${u.name}</span>
+                ${roleBadge}
+                ${!isActive ? `<span class="text-[10px] text-rose-400 font-bold">(Dibekukan)</span>` : ''}
+              </div>
+              <p class="text-[11px] text-zinc-400 mt-0.5">
+                ID Login: <code class="text-indigo-300 font-bold">${u.username}</code> • PIN: <code class="text-amber-300 font-bold">${u.accessCode}</code> • ${u.division}
+              </p>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${u.username !== 'owner' ? `
+                <button onclick="toggleAuthorizedUser('${u.userId}', ${!isActive})" class="px-2.5 py-1.5 rounded-xl text-[10px] font-bold border transition ${
+                  isActive
+                    ? 'bg-rose-500/15 hover:bg-rose-500/25 border-rose-500/30 text-rose-300'
+                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30 text-emerald-300'
+                }">
+                  ${isActive ? 'Cabut Akses' : 'Aktifkan'}
+                </button>
+              ` : `
+                <span class="text-[10px] text-zinc-500 font-semibold px-2">Owner</span>
+              `}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function handleAddAuthorizedUser(e) {
+      e.preventDefault();
+      const name = document.getElementById('newUserName').value.trim();
+      const username = document.getElementById('newUserUsername').value.trim().toLowerCase().replace(/\s+/g, '');
+      const division = document.getElementById('newUserDivision').value.trim();
+      const role = document.getElementById('newUserRole').value;
+      const accessCode = document.getElementById('newUserCode').value.trim();
+
+      const users = getAuthorizedUsers();
+      if (users.some(u => String(u.username).toLowerCase() === username)) {
+        showToast('⚠️ ID Login sudah digunakan, pilih ID lain');
+        return;
+      }
+
+      const newUser = {
+        userId: 'USR-' + Math.floor(10 + Math.random() * 89),
+        username,
+        name,
+        division,
+        role,
+        accessCode,
+        active: true
+      };
+
+      users.push(newUser);
+      saveAuthorizedUsers(users);
+      renderAuthorizedUsersList();
+
+      document.getElementById('newUserName').value = '';
+      document.getElementById('newUserUsername').value = '';
+      document.getElementById('newUserDivision').value = '';
+      document.getElementById('newUserCode').value = '';
+
+      showToast(`✅ Akses untuk ${name} (ID: ${username}) berhasil diaktifkan!`);
+      await sendActionToGoogleSheets({
+        action: 'ADD_USER',
+        user: newUser
+      });
+    }
+
+    async function toggleAuthorizedUser(userId, newActiveState) {
+      const users = getAuthorizedUsers();
+      const idx = users.findIndex(u => u.userId === userId);
+      if (idx === -1) return;
+      users[idx].active = newActiveState;
+      saveAuthorizedUsers(users);
+      renderAuthorizedUsersList();
+
+      showToast(newActiveState ? '✅ Akses pengguna diaktifkan kembali' : '🚫 Akses pengguna dicabut!');
+      await sendActionToGoogleSheets({
+        action: 'TOGGLE_USER',
+        userId: userId,
+        active: newActiveState
+      });
+    }
+
+    function updateRoleUI() {
+      const badge = document.getElementById('roleBadge');
+      const switchText = document.getElementById('roleSwitchText');
+      const uNameLabel = document.getElementById('activeUserNameLabel');
+      const uRoleLabel = document.getElementById('activeUserRoleLabel');
+
+      if (currentUser && uNameLabel && uRoleLabel) {
+        uNameLabel.textContent = currentUser.name;
+        uRoleLabel.textContent = `${currentUser.division} • ${currentUser.role}`;
+      }
+
+      if (currentRole === 'APPROVER') {
+        badge.textContent = currentUser ? currentUser.role : 'Approver';
+        badge.className = 'text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30';
+        switchText.textContent = currentUser ? currentUser.name.split(' ')[0] : 'Approver';
+      } else {
+        badge.textContent = 'Requester';
+        badge.className = 'text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        switchText.textContent = currentUser ? currentUser.name.split(' ')[0] : 'Anggota';
+      }
+      renderRequests();
+    }
+
+    function updateApproverPin() {
+      const newPin = document.getElementById('newPinInput').value.trim();
+      if (newPin.length < 4) {
+        showToast('⚠️ PIN minimal 4 karakter');
+        return;
+      }
+      localStorage.setItem(PIN_KEY, newPin);
+      const users = getAuthorizedUsers();
+      const ownerIdx = users.findIndex(u => u.username === 'owner');
+      if (ownerIdx !== -1) {
+        users[ownerIdx].accessCode = newPin;
+        saveAuthorizedUsers(users);
+        renderAuthorizedUsersList();
+      }
+      document.getElementById('newPinInput').value = '';
+      showToast('🔒 PIN Owner berhasil diperbarui!');
+    }
+
+    function resetDemoData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_DEMO_DATA));
+      renderRequests();
+      renderReports();
+      showToast('🔄 Data contoh berhasil direset');
+    }
+
+    function exportCSV() {
+      const list = getRequests();
+      const headers = ['No', 'ID', 'Tanggal', 'Nama Anggota', 'Divisi', 'Kategori', 'Judul Keperluan', 'Nominal (Rp)', 'Rekening Bank', 'Status', 'Catatan Approver'];
+      const rows = list.map((r, i) => [
+        i + 1,
+        r.id,
+        r.date,
+        `"${r.requester}"`,
+        `"${r.role}"`,
+        `"${r.category}"`,
+        `"${(r.title || '').replace(/"/g, '""')}"`,
+        r.amount,
+        `"${r.bank}"`,
+        r.status,
+        `"${(r.approverNote || '').replace(/"/g, '""')}"`
+      ]);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `Laporan_Reimbursement_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('📥 File CSV berhasil diunduh');
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('formDate').valueAsDate = new Date();
+      initAccessControlSession();
+      updateGoogleSheetConnectionIndicator();
+      renderRequests();
+      renderReports();
+      renderAuthorizedUsersList();
+      lucide.createIcons();
+      if (getWebhookUrl()) {
+        fetchFromGoogleSheets(false);
+      }
+    });
+  </script>
+</body>
+</html>
