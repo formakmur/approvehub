@@ -195,27 +195,41 @@
       <!-- VIEW 2: FORM PENGAJUAN ANGGOTA BARU        -->
       <!-- ========================================== -->
       <section id="view-form" class="hidden space-y-4 pb-6">
-        <div class="glass-card rounded-2xl p-4 border border-zinc-800">
+
+        <!-- Pilihan 2 Metode Pengajuan (Tab Switcher di dalam Menu Ajukan) -->
+        <div class="glass-card rounded-2xl p-1.5 border border-zinc-800 grid grid-cols-2 gap-1.5">
+          <button type="button" onclick="switchInputMethod('direct')" id="btnMethodDirect" class="py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-indigo-600 text-white shadow-md shadow-indigo-600/25">
+            <i data-lucide="smartphone" class="w-4 h-4"></i>
+            <span>1. Input di Dashboard</span>
+          </button>
+          <button type="button" onclick="switchInputMethod('sheet')" id="btnMethodSheet" class="py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-zinc-900/80 text-zinc-400 hover:text-white">
+            <i data-lucide="sheet" class="w-4 h-4 text-emerald-400"></i>
+            <span>2. Via Google Sheets</span>
+          </button>
+        </div>
+
+        <!-- METODE 1: INPUT LANGSUNG DI DASHBOARD -->
+        <div id="methodDirectSection" class="glass-card rounded-2xl p-4 border border-zinc-800">
           <div class="flex items-center gap-2.5 mb-4">
             <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
               <i data-lucide="file-plus-2" class="w-5 h-5"></i>
             </div>
             <div>
-              <h2 class="text-sm font-bold text-white">Form Pengajuan Dana / Reimbursement</h2>
-              <p class="text-[11px] text-zinc-400">Otomatis tersimpan ke Dashboard & Google Sheets</p>
+              <h2 class="text-sm font-bold text-white">Cara 1: Input Langsung di Dashboard</h2>
+              <p class="text-[11px] text-zinc-400">Isi form dari HP/Laptop — otomatis masuk ke Dashboard & Google Sheets</p>
             </div>
           </div>
 
           <form id="reimburseForm" onsubmit="submitNewRequest(event)" class="space-y-3.5">
             <div>
               <label class="block text-xs font-medium text-zinc-300 mb-1">Nama Anggota Tim *</label>
-              <input type="text" id="formName" required placeholder="Contoh: Budi Santoso" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              <input type="text" id="formName" required placeholder="Contoh: bu ame" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
             </div>
 
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <label class="block text-xs font-medium text-zinc-300 mb-1">Divisi / Jabatan *</label>
-                <input type="text" id="formRole" required placeholder="Contoh: Marketing" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+                <input type="text" id="formRole" required placeholder="Contoh: Staff / Requester" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
               </div>
               <div>
                 <label class="block text-xs font-medium text-zinc-300 mb-1">Kategori Biaya *</label>
@@ -248,7 +262,7 @@
 
             <div>
               <label class="block text-xs font-medium text-zinc-300 mb-1">Rekening Tujuan Pencairan *</label>
-              <input type="text" id="formBank" required placeholder="Contoh: BCA 8720192819 a/n Budi Santoso" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              <input type="text" id="formBank" required placeholder="Contoh: BCA 8720192819 a/n bu ame" class="w-full px-3.5 py-2.5 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
             </div>
 
             <div>
@@ -275,6 +289,107 @@
               <span>Kirim Pengajuan Reimbursement</span>
             </button>
           </form>
+        </div>
+
+        <!-- METODE 2: UPLOAD / INPUT DARI GOOGLE SHEETS (BISA BANYAK BARIS SEKALIGUS) -->
+        <div id="methodSheetSection" class="hidden space-y-3.5">
+
+          <!-- Opsi 2A: Ketik Langsung di Tabel Google Sheets -->
+          <div class="glass-card rounded-2xl p-4 border border-emerald-500/30 bg-gradient-to-b from-emerald-950/25 to-zinc-900/90 space-y-3">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+                  <i data-lucide="table-2" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold text-white">Cara 2A: Isi Langsung di File Google Sheets</h3>
+                  <p class="text-[11px] text-zinc-400">Cocok jika Requester ingin mengisi data langsung di spreadsheet</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 text-xs text-zinc-300 space-y-1.5 leading-relaxed">
+              <p class="font-bold text-emerald-300 text-[11px]">Langkah Mudah di Google Sheets (Tab <code class="text-white">Requests</code>):</p>
+              <ol class="list-decimal list-inside space-y-1 text-[11px] text-zinc-300">
+                <li>Klik tombol <b>Buka Tabel Google Sheets</b> di bawah.</li>
+                <li>Tambahkan baris baru di bagian bawah tab <b>Requests</b>:
+                  <ul class="list-disc list-inside pl-4 text-zinc-400 mt-0.5">
+                    <li><b>Kolom A (id)</b>: Boleh dikosongkan (sistem otomatis membuatkan ID <code class="text-indigo-300">REQ-xxxx</code>)</li>
+                    <li><b>Kolom B (date)</b>: Tanggal (contoh <code class="text-zinc-200">2026-11-22</code>)</li>
+                    <li><b>Kolom C (requester)</b>: Nama (contoh <code class="text-zinc-200">bu ame</code>)</li>
+                    <li><b>Kolom D (role)</b>: Divisi (contoh <code class="text-zinc-200">Staff / Requester</code>)</li>
+                    <li><b>Kolom E (category)</b>: Kategori biaya</li>
+                    <li><b>Kolom F (title)</b>: Judul keperluan</li>
+                    <li><b>Kolom G (amount)</b>: Nominal angka (contoh <code class="text-zinc-200">350000</code>)</li>
+                    <li><b>Kolom H (bank)</b>: Rekening bank tujuan</li>
+                    <li><b>Kolom I (description)</b>: Rincian tambahan</li>
+                  </ul>
+                </li>
+                <li>Setelah selesai mengetik di Google Sheets, klik tombol <b>Tarik Data Baru dari Google Sheets</b> di bawah.</li>
+              </ol>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <a href="https://docs.google.com/spreadsheets/d/13VKXAytIX7VG7OAPCzNegKi8l4NGZe2FXa-tuZd-_Bo/edit" target="_blank" class="py-2.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition">
+                <i data-lucide="external-link" class="w-4 h-4 text-emerald-400"></i>
+                <span>1. Buka Tabel Google Sheets ↗</span>
+              </a>
+              <button type="button" onclick="syncSheetAndOpenDashboard()" class="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20 transition">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                <span>2. Tarik Data Baru dari Sheet</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Opsi 2B: Copy-Paste Banyak Baris dari Excel / Google Sheets atau Upload File CSV -->
+          <div class="glass-card rounded-2xl p-4 border border-indigo-500/30 space-y-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+                  <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-sm font-bold text-white">Cara 2B: Upload / Copy-Paste Sekaligus (Batch)</h3>
+                  <p class="text-[11px] text-zinc-400">Copy beberapa baris dari Sheet/Excel atau pilih file CSV untuk di-upload sekaligus</p>
+                </div>
+              </div>
+              <button type="button" onclick="downloadTemplateCSV()" class="px-2.5 py-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-[10px] font-bold text-indigo-300 whitespace-nowrap transition">
+                📥 Unduh Template CSV
+              </button>
+            </div>
+
+            <!-- Upload File CSV -->
+            <div>
+              <label for="bulkCsvFileInput" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800/80 border border-dashed border-zinc-700 hover:border-indigo-500 cursor-pointer transition">
+                <div class="flex items-center gap-2">
+                  <i data-lucide="upload" class="w-4 h-4 text-indigo-400"></i>
+                  <span class="text-xs text-zinc-300 font-medium">Pilih file <b>.CSV</b> hasil download dari Google Sheets / Excel</span>
+                </div>
+                <span class="px-2 py-0.5 rounded-lg bg-indigo-500/20 text-indigo-300 text-[10px] font-bold">Pilih File</span>
+                <input id="bulkCsvFileInput" type="file" accept=".csv,.tsv,.txt" class="hidden" onchange="handleBulkCsvFileUpload(event)" />
+              </label>
+            </div>
+
+            <!-- Atau Paste Baris dari Google Sheets -->
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <label class="block text-[11px] font-medium text-zinc-300">Atau Copy-Paste Baris dari Google Sheets / Excel di sini:</label>
+                <button type="button" onclick="fillSampleBatchRows()" class="text-[10px] text-indigo-400 hover:underline font-semibold">Isi Contoh Baris</button>
+              </div>
+              <textarea
+                id="bulkPasteTextarea"
+                rows="4"
+                placeholder="Format kolom (dipisah Tab / Koma / Titik Koma):&#10;Judul Keperluan | Nominal | Kategori | Rekening Bank | Rincian&#10;Contoh:&#10;Beli Tinta & Kertas Printer, 285000, Operasional & Transport, BCA 123456 a/n bu ame, Pembelian ATK bulanan"
+                class="w-full px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-indigo-500 font-mono"
+              ></textarea>
+            </div>
+
+            <button type="button" onclick="processBulkSheetImport()" id="btnBulkImport" class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2">
+              <i data-lucide="cloud-upload" class="w-4 h-4"></i>
+              <span>Upload Semua Baris ke Dashboard & Google Sheets</span>
+            </button>
+          </div>
+
         </div>
       </section>
 
@@ -1268,6 +1383,209 @@
       document.getElementById('receiptUploadPlaceholder').classList.remove('hidden');
 
       showToast(getWebhookUrl() ? '🎉 Terkirim ke Dashboard & Google Sheets!' : '🎉 Pengajuan berhasil dikirim!');
+      switchTab('dashboard');
+      setStatusFilter('ALL');
+    }
+
+    function switchInputMethod(method) {
+      const directSec = document.getElementById('methodDirectSection');
+      const sheetSec = document.getElementById('methodSheetSection');
+      const btnDirect = document.getElementById('btnMethodDirect');
+      const btnSheet = document.getElementById('btnMethodSheet');
+
+      if (method === 'direct') {
+        directSec.classList.remove('hidden');
+        sheetSec.classList.add('hidden');
+        btnDirect.className = 'py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-indigo-600 text-white shadow-md shadow-indigo-600/25';
+        btnSheet.className = 'py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-zinc-900/80 text-zinc-400 hover:text-white';
+      } else {
+        directSec.classList.add('hidden');
+        sheetSec.classList.remove('hidden');
+        btnSheet.className = 'py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-emerald-600 text-white shadow-md shadow-emerald-600/25';
+        btnDirect.className = 'py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition bg-zinc-900/80 text-zinc-400 hover:text-white';
+      }
+      lucide.createIcons();
+    }
+
+    async function syncSheetAndOpenDashboard() {
+      showToast('🔄 Menarik pengajuan terbaru dari Google Sheets...');
+      await fetchFromGoogleSheets(true);
+      switchTab('dashboard');
+      setStatusFilter('ALL');
+    }
+
+    function downloadTemplateCSV() {
+      const reqName = (currentUser && currentUser.name) ? currentUser.name : 'bu ame';
+      const reqRole = (currentUser && currentUser.division) ? currentUser.division : 'Staff / Requester';
+      const today = new Date().toISOString().slice(0, 10);
+      const csvRows = [
+        'date,requester,role,category,title,amount,bank,description',
+        `${today},${reqName},${reqRole},Operasional & Transport,Bensin & Tol Kunjungan Klien,250000,BCA 1234567890 a/n ${reqName},Kunjungan operasional harian`,
+        `${today},${reqName},${reqRole},Konsumsi & Meeting,Konsumsi Meeting Tim,180000,BCA 1234567890 a/n ${reqName},Meeting koordinasi mingguan`
+      ].join('\n');
+
+      const blob = new Blob([csvRows], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Template_Upload_Reimbursement_ApproveHub.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('📥 Template CSV berhasil diunduh!');
+    }
+
+    function fillSampleBatchRows() {
+      const reqName = (currentUser && currentUser.name) ? currentUser.name : 'bu ame';
+      document.getElementById('bulkPasteTextarea').value =
+        `Beli Kertas HVS & Tinta Printer\t320000\tOperasional & Transport\tBCA 881920192 a/n ${reqName}\tStok ATK bulanan kantor\n` +
+        `Konsumsi Rapat Evaluasi Bulanan\t450000\tKonsumsi & Meeting\tBCA 881920192 a/n ${reqName}\tMakan siang 10 orang`;
+      showToast('✨ Contoh baris berhasil diisi, klik tombol Upload di bawahnya');
+    }
+
+    function handleBulkCsvFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById('bulkPasteTextarea').value = e.target.result || '';
+        showToast('📄 File CSV dimuat! Klik tombol Upload Semua Baris di bawah.');
+      };
+      reader.readAsText(file);
+    }
+
+    function parseDelimitedLine(line) {
+      if (line.includes('\t')) {
+        return line.split('\t').map(s => s.trim().replace(/^"|"$/g, ''));
+      }
+      const sep = (line.split(';').length > line.split(',').length) ? ';' : ',';
+      const result = [];
+      let cur = '';
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (ch === '"') {
+          inQuotes = !inQuotes;
+        } else if (ch === sep && !inQuotes) {
+          result.push(cur.trim());
+          cur = '';
+        } else {
+          cur += ch;
+        }
+      }
+      result.push(cur.trim());
+      return result.map(s => s.replace(/^"|"$/g, ''));
+    }
+
+    async function processBulkSheetImport() {
+      const rawText = (document.getElementById('bulkPasteTextarea').value || '').trim();
+      if (!rawText) {
+        showToast('⚠️ Tempel baris dari Google Sheets atau pilih file CSV terlebih dahulu!');
+        return;
+      }
+
+      const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      if (lines.length === 0) return;
+
+      const defaultName = (currentUser && currentUser.name) ? currentUser.name : 'bu ame';
+      const defaultRole = (currentUser && currentUser.division) ? currentUser.division : 'Staff / Requester';
+      const today = new Date().toISOString().slice(0, 10);
+
+      const newItems = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        const cols = parseDelimitedLine(lines[i]);
+        if (cols.length === 0) continue;
+
+        // Lewati baris header jika ada
+        const firstLower = (cols[0] || '').toLowerCase();
+        if (firstLower === 'id' || firstLower === 'date' || firstLower === 'tanggal' || firstLower === 'judul keperluan' || firstLower === 'title') {
+          continue;
+        }
+
+        let item = null;
+
+        // Deteksi format:
+        // Format A (8+ kolom dari Google Sheets / Template CSV: date, requester, role, category, title, amount, bank, description)
+        if (cols.length >= 7 && !isNaN(Number(String(cols[5] || cols[6]).replace(/[^0-9.-]/g, '')))) {
+          // Cek apakah kolom 0 adalah REQ-id atau date
+          const hasIdCol = String(cols[0]).toUpperCase().startsWith('REQ-');
+          const offset = hasIdCol ? 1 : 0;
+          const rawAmt = String(cols[5 + offset] || '0').replace(/[^0-9.-]/g, '');
+          const amt = Number(rawAmt || 0);
+          const title = cols[4 + offset] || 'Pengajuan Reimbursement';
+          const dateVal = cols[0 + offset] || today;
+          item = {
+            id: (hasIdCol && cols[0]) ? cols[0] : ('REQ-' + Math.floor(2405 + Math.random() * 7500)),
+            date: dateVal,
+            requester: cols[1 + offset] || defaultName,
+            role: cols[2 + offset] || defaultRole,
+            category: cols[3 + offset] || 'Operasional & Transport',
+            title: title,
+            amount: amt,
+            bank: cols[6 + offset] || '-',
+            description: cols[7 + offset] || 'Diunggah via Batch Google Sheets / CSV',
+            status: 'PENDING',
+            approverNote: '',
+            receiptUrl: createReceiptPlaceholder(title, formatRupiah(amt), dateVal, 'UPLOAD SHEET / CSV')
+          };
+        } else {
+          // Format B Ringkas (Judul | Nominal | Kategori | Rekening Bank | Rincian)
+          const title = cols[0] || 'Pengajuan Reimbursement';
+          const rawAmt = String(cols[1] || '0').replace(/[^0-9.-]/g, '');
+          const amt = Number(rawAmt || 0);
+          if (!title && amt <= 0) continue;
+          const cat = cols[2] || 'Operasional & Transport';
+          const bank = cols[3] || '-';
+          const desc = cols[4] || 'Diunggah via Batch Google Sheets';
+          item = {
+            id: 'REQ-' + Math.floor(2405 + Math.random() * 7500),
+            date: today,
+            requester: defaultName,
+            role: defaultRole,
+            category: cat,
+            title: title,
+            amount: amt,
+            bank: bank,
+            description: desc,
+            status: 'PENDING',
+            approverNote: '',
+            receiptUrl: createReceiptPlaceholder(title, formatRupiah(amt), today, 'UPLOAD SHEET / CSV')
+          };
+        }
+
+        if (item && item.title) {
+          newItems.push(item);
+        }
+      }
+
+      if (newItems.length === 0) {
+        showToast('⚠️ Tidak ada baris valid yang dapat di-upload.');
+        return;
+      }
+
+      const btn = document.getElementById('btnBulkImport');
+      btn.disabled = true;
+
+      const list = getRequests();
+      newItems.slice().reverse().forEach(it => list.unshift(it));
+      saveRequests(list);
+
+      showToast(`☁️ Mengunggah ${newItems.length} pengajuan ke Google Sheets...`);
+      for (const it of newItems) {
+        await sendActionToGoogleSheets({
+          action: 'CREATE',
+          item: it
+        });
+      }
+
+      btn.disabled = false;
+      document.getElementById('bulkPasteTextarea').value = '';
+      const fileInp = document.getElementById('bulkCsvFileInput');
+      if (fileInp) fileInp.value = '';
+
+      showToast(`🎉 Berhasil meng-upload ${newItems.length} pengajuan ke Dashboard & Google Sheets!`);
       switchTab('dashboard');
       setStatusFilter('ALL');
     }
