@@ -662,6 +662,7 @@
     const GSHEET_WEBHOOK_KEY = 'approvehub_gsheet_webhook_v1';
     const GSHEET_DOC_URL_KEY = 'approvehub_gsheet_doc_url_v1';
     const DEFAULT_SHEET_DOC_URL = 'https://docs.google.com/spreadsheets/d/13VKXAytIX7VG7OAPCzNegKi8l4NGZe2FXa-tuZd-_Bo/edit';
+    const DEFAULT_CLOUD_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbyrRiKsLWvxeuSr529SFOH7YcR0mt9xBq4dskFhdFcv8P1Cn43uGc0_fnsGXOtcDLU/exec';
     const LOCAL_BRIDGE_API = 'http://localhost:3456/api/sheets';
 
     const DEFAULT_AUTHORIZED_USERS = [
@@ -764,10 +765,7 @@
       const saved = (localStorage.getItem(GSHEET_WEBHOOK_KEY) || '').trim();
       if (saved) return saved;
       if (window.location.port === '3456') return '/api/sheets';
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        return LOCAL_BRIDGE_API;
-      }
-      return '';
+      return DEFAULT_CLOUD_WEBHOOK_URL;
     }
 
     function getSheetDocUrl() {
@@ -836,6 +834,13 @@
           if (Array.isArray(json.users) && json.users.length > 0) {
             saveAuthorizedUsers(json.users);
             renderAuthorizedUsersList();
+            if (currentUser) {
+              const liveMatch = json.users.find(u => String(u.username || '').toLowerCase() === String(currentUser.username || '').toLowerCase());
+              if (!liveMatch || liveMatch.active === false || String(liveMatch.active).toUpperCase() === 'FALSE') {
+                logoutAndLock();
+                showToast('🚫 Akses akun Anda telah dinonaktifkan oleh Owner!');
+              }
+            }
           }
           if (json.data.length > 0) {
             const existing = getRequests();
@@ -860,6 +865,12 @@
     }
 
     async function pushAllLocalToGoogleSheets() {
+      const items = getRequests();
+      showToast('☁️ Mengunggah & menyinkronkan data ke Google Sheets...');
+      await sendActionToGoogleSheets({
+        action: 'SYNC_ALL',
+        items: items
+      });
       await fetchFromGoogleSheets(true);
     }
 
@@ -1248,6 +1259,10 @@
       btn.disabled = false;
       document.getElementById('reimburseForm').reset();
       document.getElementById('formDate').valueAsDate = new Date();
+      if (currentUser) {
+        document.getElementById('formName').value = currentUser.name || '';
+        document.getElementById('formRole').value = currentUser.division || '';
+      }
       uploadedReceiptDataUrl = '';
       document.getElementById('receiptPreviewImg').classList.add('hidden');
       document.getElementById('receiptUploadPlaceholder').classList.remove('hidden');
@@ -1333,10 +1348,12 @@
     }
 
     function openRoleModal() {
-      document.getElementById('pinVerifyInput').value = '';
+      const pinEl = document.getElementById('pinVerifyInput');
+      if (pinEl) pinEl.value = '';
       const modal = document.getElementById('roleModal');
       modal.classList.remove('hidden');
       modal.classList.add('flex');
+      lucide.createIcons();
     }
 
     function closeRoleModal() {
@@ -1359,11 +1376,17 @@
     }
 
     function copyAppsScriptCode() {
-      const code = `const SHEET_NAME = 'Requests';
+      const code = `const SPREADSHEET_ID = '13VKXAytIX7VG7OAPCzNegKi8l4NGZe2FXa-tuZd-_Bo';
+const SHEET_NAME = 'Requests';
+const USERS_SHEET_NAME = 'Users';
 const DRIVE_FOLDER_NAME = 'ApproveHub_Receipts';
 
+function getSpreadsheet() {
+  return SpreadsheetApp.openById(SPREADSHEET_ID);
+}
+
 function setupSheet() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
   if (sheet.getLastRow() === 0) {
@@ -1371,6 +1394,16 @@ function setupSheet() {
     sheet.appendRow(headers);
     sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#4f46e5').setFontColor('#ffffff');
     sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+function setupUsersSheet() {
+  const ss = getSpreadsheet();
+  let sheet = ss.getSheetByName(USERS_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(USERS_SHEET_NAME);
+    sheet.appendRow(['userId','username','name','division','role','accessCode','active']);
   }
   return sheet;
 }
@@ -1397,52 +1430,88 @@ function saveBase64ReceiptToDrive(base64DataUrl, requestId) {
   } catch (err) { return base64DataUrl; }
 }
 
-function doGet() {
-  const sheet = setupSheet();
+function readSheetData(sheet, isReverse) {
   const rows = sheet.getDataRange().getValues();
-  if (rows.length <= 1) return ContentService.createTextOutput(JSON.stringify({ ok: true, data: [] })).setMimeType(ContentService.MimeType.JSON);
+  if (rows.length <= 1) return [];
   const headers = rows[0];
   const list = [];
   for (let i = 1; i < rows.length; i++) {
     if (!rows[i][0]) continue;
     const obj = {};
     for (let j = 0; j < headers.length; j++) obj[headers[j]] = rows[i][j];
-    obj.amount = Number(obj.amount || 0);
+    if (obj.amount !== undefined) obj.amount = Number(obj.amount || 0);
     if (obj.date instanceof Date) obj.date = Utilities.formatDate(obj.date, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    if (obj.active !== undefined) obj.active = String(obj.active).toUpperCase() !== 'FALSE';
     list.push(obj);
   }
-  list.reverse();
-  return ContentService.createTextOutput(JSON.stringify({ ok: true, data: list })).setMimeType(ContentService.MimeType.JSON);
+  if (isReverse) list.reverse();
+  return list;
+}
+
+function doGet() {
+  const reqSheet = setupSheet();
+  const usrSheet = setupUsersSheet();
+  return ContentService.createTextOutput(JSON.stringify({
+    ok: true,
+    data: readSheetData(reqSheet, true),
+    users: readSheetData(usrSheet, false)
+  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
-  const sheet = setupSheet();
+  const reqSheet = setupSheet();
+  const usrSheet = setupUsersSheet();
   const body = JSON.parse(e.postData.contents);
   const now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
   if (body.action === 'CREATE') {
     const item = body.item;
     const receiptUrl = saveBase64ReceiptToDrive(item.receiptUrl, item.id);
-    sheet.appendRow([item.id, item.date, item.requester, item.role, item.category, item.title, Number(item.amount||0), item.bank, item.description||'', item.status||'PENDING', item.approverNote||'', receiptUrl, now]);
+    reqSheet.appendRow([item.id, item.date, item.requester, item.role, item.category, item.title, Number(item.amount||0), item.bank, item.description||'', item.status||'PENDING', item.approverNote||'', receiptUrl, now]);
     return ContentService.createTextOutput(JSON.stringify({ ok: true, receiptUrl })).setMimeType(ContentService.MimeType.JSON);
   }
   if (body.action === 'UPDATE_STATUS') {
-    const rows = sheet.getDataRange().getValues();
+    const rows = reqSheet.getDataRange().getValues();
     for (let i = 1; i < rows.length; i++) {
       if (String(rows[i][0]) === String(body.id)) {
-        sheet.getRange(i + 1, 10).setValue(body.status);
-        sheet.getRange(i + 1, 11).setValue(body.approverNote || '');
-        sheet.getRange(i + 1, 13).setValue(now);
+        reqSheet.getRange(i + 1, 10).setValue(body.status);
+        reqSheet.getRange(i + 1, 11).setValue(body.approverNote || '');
+        reqSheet.getRange(i + 1, 13).setValue(now);
+        break;
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (body.action === 'ADD_USER') {
+    const u = body.user;
+    usrSheet.appendRow([u.userId, u.username, u.name, u.division, u.role, u.accessCode, u.active === false ? 'FALSE' : 'TRUE']);
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (body.action === 'TOGGLE_USER') {
+    const rows = usrSheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(body.userId)) {
+        usrSheet.getRange(i + 1, 7).setValue(body.active ? 'TRUE' : 'FALSE');
+        break;
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
+  }
+  if (body.action === 'UPDATE_USER_PIN') {
+    const rows = usrSheet.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      if (String(rows[i][0]) === String(body.userId)) {
+        usrSheet.getRange(i + 1, 6).setValue(String(body.accessCode));
         break;
       }
     }
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
   }
   if (body.action === 'SYNC_ALL') {
-    const existingIds = new Set(sheet.getDataRange().getValues().slice(1).map(r => String(r[0])));
+    const existingIds = new Set(reqSheet.getDataRange().getValues().slice(1).map(r => String(r[0])));
     (body.items || []).slice().reverse().forEach(item => {
       if (!existingIds.has(String(item.id))) {
         const receiptUrl = saveBase64ReceiptToDrive(item.receiptUrl, item.id);
-        sheet.appendRow([item.id, item.date, item.requester, item.role, item.category, item.title, Number(item.amount||0), item.bank, item.description||'', item.status||'PENDING', item.approverNote||'', receiptUrl, now]);
+        reqSheet.appendRow([item.id, item.date, item.requester, item.role, item.category, item.title, Number(item.amount||0), item.bank, item.description||'', item.status||'PENDING', item.approverNote||'', receiptUrl, now]);
       }
     });
     return ContentService.createTextOutput(JSON.stringify({ ok: true })).setMimeType(ContentService.MimeType.JSON);
@@ -1504,11 +1573,11 @@ function doPost(e) {
       currentRole = (user.role === 'ADMIN' || user.role === 'APPROVER') ? 'APPROVER' : 'MEMBER';
       localStorage.setItem(ACTIVE_USER_KEY, JSON.stringify(user));
 
-      // Auto-fill form jika anggota mengajukan
+      // Auto-fill form sesuai akun yang sedang login
       const formNameEl = document.getElementById('formName');
       const formRoleEl = document.getElementById('formRole');
-      if (formNameEl && !formNameEl.value) formNameEl.value = user.name || '';
-      if (formRoleEl && !formRoleEl.value) formRoleEl.value = user.division || '';
+      if (formNameEl) formNameEl.value = user.name || '';
+      if (formRoleEl) formRoleEl.value = user.division || '';
 
       hideLoginGate();
       updateRoleUI();
@@ -1702,7 +1771,7 @@ function doPost(e) {
       renderRequests();
     }
 
-    function updateApproverPin() {
+    async function updateApproverPin() {
       const newPin = document.getElementById('newPinInput').value.trim();
       if (newPin.length < 4) {
         showToast('⚠️ PIN minimal 4 karakter');
@@ -1715,9 +1784,14 @@ function doPost(e) {
         users[ownerIdx].accessCode = newPin;
         saveAuthorizedUsers(users);
         renderAuthorizedUsersList();
+        await sendActionToGoogleSheets({
+          action: 'UPDATE_USER_PIN',
+          userId: users[ownerIdx].userId,
+          accessCode: newPin
+        });
       }
       document.getElementById('newPinInput').value = '';
-      showToast('🔒 PIN Owner berhasil diperbarui!');
+      showToast('🔒 PIN Owner berhasil diperbarui & tersimpan ke Sheet!');
     }
 
     function resetDemoData() {
