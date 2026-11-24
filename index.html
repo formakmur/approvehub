@@ -64,6 +64,9 @@
     .animate-slide-up {
       animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
     }
+    .num-tabular {
+      font-variant-numeric: tabular-nums;
+    }
   </style>
 </head>
 <body class="min-h-screen flex justify-center bg-zinc-950 text-zinc-100 selection:bg-indigo-500 selection:text-white">
@@ -72,28 +75,36 @@
   <div class="w-full max-w-2xl min-h-screen bg-zinc-950 flex flex-col relative shadow-2xl md:border-x md:border-zinc-800/80 pb-24">
 
     <!-- TOP HEADER -->
-    <header class="sticky top-0 z-30 bottom-nav-blur px-4 py-3.5 flex items-center justify-between border-b border-zinc-800/80">
-      <div class="flex items-center gap-2.5">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-          <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
-        </div>
-        <div>
-          <div class="flex items-center gap-1.5">
-            <h1 class="font-bold text-base tracking-tight text-white">ApproveHub</h1>
-            <span id="roleBadge" class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-              Approver
-            </span>
+    <header class="sticky top-0 z-30 bottom-nav-blur px-4 py-3.5 flex items-center justify-between gap-2 border-b border-zinc-800/80">
+      <div class="flex items-center gap-2 min-w-0">
+        <!-- Tombol Kembali ke Menu Awal (muncul saat Admin/Bos1 masuk ke Approval atau Data Keuangan) -->
+        <button onclick="openModule('home')" id="btnBackToMenu" title="Kembali ke Menu Awal" class="hidden items-center gap-1 px-2.5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-700/80 text-xs font-bold text-zinc-100 transition active:scale-95 shrink-0">
+          <i data-lucide="arrow-left" class="w-4 h-4 text-emerald-400"></i>
+          <span>Menu</span>
+        </button>
+
+        <div onclick="goToHomeMenuIfAllowed()" class="flex items-center gap-2.5 cursor-pointer select-none min-w-0">
+          <div id="headerBrandIcon" class="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
+            <i data-lucide="shield-check" class="w-5 h-5 text-white"></i>
           </div>
-          <div class="flex items-center gap-1.5 mt-0.5">
-            <span id="gsheetStatusDot" class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
-            <p id="gsheetStatusText" class="text-[10px] text-zinc-400">Mode Lokal (Belum terhubung Sheet)</p>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <h1 id="headerBrandTitle" class="font-bold text-base tracking-tight text-white truncate">ApproveHub</h1>
+              <span id="roleBadge" class="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 shrink-0">
+                Approver
+              </span>
+            </div>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span id="gsheetStatusDot" class="w-1.5 h-1.5 rounded-full bg-zinc-500"></span>
+              <p id="gsheetStatusText" class="text-[10px] text-zinc-400 truncate">Mode Lokal (Belum terhubung Sheet)</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="flex items-center gap-1.5">
-        <!-- Refresh from Google Sheets Button -->
-        <button onclick="fetchFromGoogleSheets(true)" id="btnRefreshSheet" title="Sinkronisasi dari Google Sheets" class="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition active:scale-95">
+      <div class="flex items-center gap-1.5 shrink-0">
+        <!-- Refresh Button -->
+        <button onclick="refreshActiveModule()" id="btnRefreshSheet" title="Perbarui Data" class="p-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 transition active:scale-95">
           <i data-lucide="refresh-cw" id="refreshIcon" class="w-3.5 h-3.5 text-emerald-400"></i>
         </button>
 
@@ -108,10 +119,102 @@
     <!-- MAIN CONTENT AREA -->
     <main class="flex-1 px-4 pt-4 space-y-5">
 
+      <!-- BAR TOMBOL KEMBALI KE MENU UTAMA (SELALU MUNCUL DI DALAM SUB-MENU UNTUK ADMIN & BOS1) -->
+      <div id="inlineBackToMenuBar" class="hidden">
+        <button onclick="openModule('home')" class="w-full py-2.5 px-3.5 rounded-2xl bg-zinc-900/95 hover:bg-zinc-800 border border-zinc-700/80 text-xs font-bold text-zinc-100 flex items-center justify-between transition active:scale-[0.99]">
+          <span class="flex items-center gap-2">
+            <i data-lucide="arrow-left" class="w-4 h-4 text-emerald-400"></i>
+            <span>Kembali ke Menu Utama</span>
+          </span>
+          <span class="text-[10px] font-semibold text-zinc-400 px-2 py-0.5 rounded-lg bg-zinc-950 border border-zinc-800">Pilih Menu</span>
+        </button>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- VIEW 0: MENU UTAMA (PILIHAN MENU ADMIN & BOS1)           -->
+      <!-- ======================================================== -->
+      <section id="view-home-menu" class="hidden space-y-4 pt-2 pb-6">
+        <div class="space-y-1 px-0.5">
+          <p class="text-xs font-semibold text-zinc-400">Selamat datang, <span id="homeWelcomeName" class="text-white font-bold">Bos1</span></p>
+          <h2 class="text-xl font-extrabold text-white tracking-tight">Pilih Menu Dashboard</h2>
+        </div>
+
+        <div class="grid grid-cols-1 gap-3.5">
+          <!-- MENU 1: APPROVAL -->
+          <button onclick="openModule('approval')" class="w-full text-left glass-card rounded-3xl p-5 border border-indigo-500/35 bg-gradient-to-br from-indigo-950/45 via-zinc-900/90 to-zinc-900/95 hover:border-indigo-400/60 transition active:scale-[0.99] group">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-600/25 shrink-0">
+                  <i data-lucide="clipboard-check" class="w-7 h-7 text-white"></i>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="text-lg font-extrabold text-white tracking-tight">Approval</h3>
+                  <p class="text-xs text-zinc-400 mt-0.5">Persetujuan &amp; pengajuan reimbursement</p>
+                  <div class="mt-2">
+                    <span id="homeApprovalBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      0 Menunggu
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-9 h-9 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-center text-indigo-300 group-hover:translate-x-0.5 transition shrink-0">
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+          </button>
+
+          <!-- MENU 2: DATA KEUANGAN -->
+          <button onclick="openModule('keuangan')" class="w-full text-left glass-card rounded-3xl p-5 border border-emerald-500/35 bg-gradient-to-br from-emerald-950/45 via-zinc-900/90 to-zinc-900/95 hover:border-emerald-400/60 transition active:scale-[0.99] group">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-600/25 shrink-0">
+                  <i data-lucide="landmark" class="w-7 h-7 text-white"></i>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="text-lg font-extrabold text-white tracking-tight">Data Keuangan</h3>
+                  <p id="homeKeuanganCompany" class="text-xs text-zinc-300 font-medium mt-0.5 truncate">PT. Fortuna Marina Sejahtera</p>
+                  <div class="mt-2">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
+                      Update 1x/Hari (06:00 WIB)
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-9 h-9 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-center text-emerald-300 group-hover:translate-x-0.5 transition shrink-0">
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+          </button>
+
+          <!-- MENU 3: WHITELIST PENGGUNA (KHUSUS ADMIN) -->
+          <button id="homeWhitelistCard" onclick="openModule('whitelist')" class="hidden w-full text-left glass-card rounded-3xl p-5 border border-amber-500/35 bg-gradient-to-br from-amber-950/35 via-zinc-900/90 to-zinc-900/95 hover:border-amber-400/60 transition active:scale-[0.99] group">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5 min-w-0">
+                <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-600/25 shrink-0">
+                  <i data-lucide="shield-alert" class="w-7 h-7 text-white"></i>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="text-lg font-extrabold text-white tracking-tight">Whitelist Pengguna</h3>
+                  <p class="text-xs text-zinc-400 mt-0.5">Kelola akun login, PIN &amp; hak akses pengguna</p>
+                  <div class="mt-2">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                      Khusus Admin
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div class="w-9 h-9 rounded-xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-center text-amber-300 group-hover:translate-x-0.5 transition shrink-0">
+                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+          </button>
+        </div>
+      </section>
+
       <!-- ========================================== -->
       <!-- VIEW 1: DASHBOARD APPROVAL & DAFTAR REQUEST -->
       <!-- ========================================== -->
-      <section id="view-dashboard" class="space-y-4">
+      <section id="view-dashboard" class="hidden space-y-4">
 
         <!-- Google Sheets Connection Banner (If not connected yet) -->
         <div id="gsheetSetupBanner" class="glass-card rounded-2xl p-3.5 border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/90 to-zinc-900/90 flex items-center justify-between gap-3">
@@ -472,41 +575,65 @@
           <div id="memberBreakdownList" class="space-y-2"></div>
         </div>
 
-        <!-- PANEL KONTROL AKSES PENGGUNA (DARI LAPTOP OWNER) -->
-        <div id="userAccessControlSection" class="glass-card rounded-2xl p-4 space-y-3.5 border border-indigo-500/30 bg-gradient-to-b from-indigo-950/30 to-zinc-900/90">
+        <!-- KONEKSI APPS SCRIPT DATA KEUANGAN (KHUSUS ADMIN) -->
+        <div id="keuanganSyncConfigCard" class="hidden glass-card rounded-2xl p-4 space-y-3 border border-emerald-500/30 bg-gradient-to-b from-emerald-950/20 to-zinc-900/90">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <i data-lucide="landmark" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h3 class="text-xs font-bold text-white">Sinkronisasi Data Keuangan (1x/Hari 06:00 WIB)</h3>
+              <p class="text-[11px] text-zinc-400">Email sumber: <code class="text-emerald-300">tata88fortuna@gmail.com</code> (tanpa forward)</p>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <label class="block text-[11px] font-medium text-zinc-300">Web App URL Apps Script Keuangan (Opsional)</label>
+            <input type="url" id="keuanganAppsScriptInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full px-3 py-2.5 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500" />
+          </div>
+          <button onclick="saveKeuanganApiConfig()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition">
+            Simpan &amp; Tarik Data Keuangan
+          </button>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- VIEW 6: WHITELIST PENGGUNA (MENU BARU — KHUSUS ADMIN)    -->
+      <!-- ======================================================== -->
+      <section id="view-whitelist" class="hidden space-y-4 pb-6">
+        <div id="userAccessControlSection" class="glass-card rounded-2xl p-4 space-y-3.5 border border-amber-500/30 bg-gradient-to-b from-amber-950/25 to-zinc-900/90">
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2.5">
-              <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shrink-0">
+              <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
                 <i data-lucide="shield-alert" class="w-5 h-5"></i>
               </div>
               <div>
-                <h3 class="text-xs font-bold text-white">Daftar Akses Pengguna Resmi (Whitelist)</h3>
-                <p class="text-[11px] text-zinc-400">Hanya pengguna aktif di bawah ini yang bisa login dari HP mereka</p>
+                <h3 class="text-sm font-bold text-white">Whitelist Pengguna Resmi</h3>
+                <p class="text-[11px] text-zinc-400">Hanya Admin yang dapat mengelola akses login pengguna di HP</p>
               </div>
             </div>
-            <span class="px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold">
-              Tersinkron ke Tab Users
+            <span class="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold shrink-0">
+              Khusus Admin
             </span>
           </div>
 
           <!-- Form Tambah Pengguna Baru -->
           <form onsubmit="handleAddAuthorizedUser(event)" class="p-3 rounded-xl bg-zinc-950/90 border border-zinc-800 space-y-2.5">
-            <p class="text-[11px] font-bold text-indigo-300">+ Berikan Akses ke Pengguna / HP Baru</p>
+            <p class="text-[11px] font-bold text-amber-300">+ Berikan Akses ke Pengguna / HP Baru</p>
             <div class="grid grid-cols-2 gap-2">
-              <input type="text" id="newUserName" required placeholder="Nama Lengkap (misal: Andi)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
-              <input type="text" id="newUserUsername" required placeholder="ID Login (misal: andi)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              <input type="text" id="newUserName" required placeholder="Nama Lengkap (misal: Andi)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500" />
+              <input type="text" id="newUserUsername" required placeholder="ID Login (misal: andi)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500" />
             </div>
             <div class="grid grid-cols-3 gap-2">
-              <input type="text" id="newUserDivision" required placeholder="Divisi (misal: Sales)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
-              <select id="newUserRole" class="px-2.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <input type="text" id="newUserDivision" required placeholder="Divisi (misal: Sales)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500" />
+              <select id="newUserRole" class="px-2.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500">
                 <option value="MEMBER">Anggota (Requester)</option>
                 <option value="APPROVER">Approver</option>
                 <option value="ADMIN">Owner / Admin</option>
               </select>
-              <input type="text" id="newUserCode" required placeholder="Kode PIN (4-6 digit)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-indigo-500" />
+              <input type="text" id="newUserCode" required placeholder="Kode PIN (4-6 digit)" class="px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-xs text-white focus:outline-none focus:border-amber-500" />
             </div>
-            <button type="submit" class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition">
-              + Tambahkan & Beri Akses Login
+            <button type="submit" class="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs transition">
+              + Tambahkan &amp; Beri Akses Login
             </button>
           </form>
 
@@ -514,15 +641,15 @@
           <div id="authorizedUsersList" class="space-y-2"></div>
         </div>
 
-        <!-- Keamanan PIN Approver -->
+        <!-- Keamanan PIN Admin -->
         <div class="glass-card rounded-2xl p-4 space-y-3 border border-indigo-500/20">
           <div class="flex items-center gap-2.5">
             <div class="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-400">
               <i data-lucide="lock" class="w-4 h-4"></i>
             </div>
             <div>
-              <h3 class="text-xs font-bold text-white">Pengaturan PIN Keamanan Approver</h3>
-              <p class="text-[11px] text-zinc-400">PIN diperlukan untuk menyetujui atau menolak pengajuan (Default: <code class="text-indigo-300">1234</code>)</p>
+              <h3 class="text-xs font-bold text-white">Ubah PIN Keamanan Admin (Owner)</h3>
+              <p class="text-[11px] text-zinc-400">Tersimpan ke Google Sheets Tab Users (Default: <code class="text-indigo-300">1234</code>)</p>
             </div>
           </div>
           <div class="flex gap-2">
@@ -538,13 +665,103 @@
         </div>
       </section>
 
+      <!-- ======================================================== -->
+      <!-- VIEW 4: DATA KEUANGAN (KHUSUS ADMIN & BOS1 — SEDERHANA)  -->
+      <!-- ======================================================== -->
+      <section id="view-keuangan" class="hidden space-y-4 pb-6">
+        <!-- NAMA PERUSAHAAN -->
+        <div class="glass-card rounded-2xl p-4 sm:p-5 border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-zinc-900/90 to-zinc-900/95 space-y-2">
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <i data-lucide="building-2" class="w-3.5 h-3.5"></i>
+            Nama Perusahaan
+          </p>
+          <h2 id="keuCompanyName" class="text-xl sm:text-2xl font-extrabold text-white tracking-tight leading-snug">
+            PT. Fortuna Marina Sejahtera
+          </h2>
+          <div class="flex items-center flex-wrap gap-x-3 gap-y-1 text-[11px] text-zinc-400 pt-0.5">
+            <span class="flex items-center gap-1">
+              <i data-lucide="mail" class="w-3 h-3 text-emerald-400"></i>
+              <span id="keuSenderText">tata88fortuna@gmail.com</span>
+            </span>
+            <span class="flex items-center gap-1">
+              <i data-lucide="clock" class="w-3 h-3 text-zinc-400"></i>
+              <span id="keuDateText">2026-11-24 12:01 WIB</span>
+            </span>
+          </div>
+
+          <div id="keuSelectorRow" class="hidden pt-2.5 mt-1 border-t border-zinc-800/80 flex items-center gap-2">
+            <label for="keuReportSelect" class="text-xs font-semibold text-zinc-400 whitespace-nowrap">Pilih Laporan:</label>
+            <select id="keuReportSelect" onchange="selectKeuanganReport(this.value)" class="flex-1 px-3 py-2 rounded-xl bg-zinc-950 border border-zinc-800 text-xs text-white focus:outline-none focus:border-emerald-500"></select>
+          </div>
+        </div>
+
+        <!-- KOTAK 1: SALDO AKHIR TAHUN LALU -->
+        <div class="glass-card rounded-2xl overflow-hidden border border-amber-500/30">
+          <div class="px-4 sm:px-5 py-3.5 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-b border-zinc-800/90 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-300 shrink-0">
+                <i data-lucide="calendar-clock" class="w-4 h-4"></i>
+              </div>
+              <h3 class="text-base sm:text-lg font-extrabold text-amber-200 tracking-tight">Saldo Akhir Tahun Lalu</h3>
+            </div>
+            <span id="keuLastYearPeriodTag" class="text-xs font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-3 py-1 rounded-full whitespace-nowrap">
+              per 31 dec 2025
+            </span>
+          </div>
+          <div id="keuLastYearBody" class="divide-y divide-zinc-800/80 px-4 sm:px-5"></div>
+        </div>
+
+        <!-- KOTAK 2: PERIODE BERJALAN -->
+        <div class="glass-card rounded-2xl overflow-hidden border border-emerald-500/30">
+          <div class="px-4 sm:px-5 py-3.5 bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border-b border-zinc-800/90 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-300 shrink-0">
+                <i data-lucide="trending-up" class="w-4 h-4"></i>
+              </div>
+              <h3 class="text-base sm:text-lg font-extrabold text-emerald-200 tracking-tight">Periode Berjalan</h3>
+            </div>
+            <span id="keuCurrentPeriodTag" class="text-xs font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 rounded-full whitespace-nowrap">
+              per 20 juli 2026
+            </span>
+          </div>
+          <div id="keuCurrentBody" class="divide-y divide-zinc-800/80 px-4 sm:px-5"></div>
+        </div>
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- VIEW 5: RIWAYAT EMAIL KEUANGAN (KHUSUS ADMIN & BOS1)     -->
+      <!-- ======================================================== -->
+      <section id="view-keuangan-history" class="hidden space-y-4 pb-6">
+        <div class="glass-card rounded-2xl p-4 border border-emerald-500/25 flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
+              <i data-lucide="inbox" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h2 class="text-sm font-bold text-white">Riwayat Email Keuangan</h2>
+              <p class="text-[11px] text-zinc-400">Pengirim: <code class="text-emerald-300">tata88fortuna@gmail.com</code> (cek 1x/hari 06:00 WIB)</p>
+            </div>
+          </div>
+          <button onclick="fetchKeuanganData(true)" class="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 transition shrink-0">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+            Perbarui
+          </button>
+        </div>
+        <div id="keuHistoryList" class="space-y-3"></div>
+      </section>
+
     </main>
 
 
     <!-- ========================================== -->
-    <!-- BOTTOM NAVIGATION BAR (MOBILE FIRST)       -->
+    <!-- BOTTOM NAVIGATION BAR: APPROVAL            -->
     <!-- ========================================== -->
-    <nav class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-30 bottom-nav-blur px-6 py-2.5 flex items-center justify-around">
+    <nav id="bottomNavApproval" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-30 bottom-nav-blur px-6 py-2.5 flex items-center justify-around">
+      <button onclick="openModule('home')" id="nav-home-approval" class="hidden flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 transition">
+        <i data-lucide="grid-2x2" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold">Menu</span>
+      </button>
+
       <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex flex-col items-center gap-1 text-indigo-400 transition">
         <div class="relative">
           <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
@@ -562,7 +779,30 @@
 
       <button onclick="switchTab('reports')" id="nav-reports" class="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 transition">
         <i data-lucide="sheet" class="w-5 h-5"></i>
-        <span class="text-[10px] font-semibold">Sheets & Rekap</span>
+        <span class="text-[10px] font-semibold">Sheets &amp; Rekap</span>
+      </button>
+    </nav>
+
+    <!-- ========================================== -->
+    <!-- BOTTOM NAVIGATION BAR: DATA KEUANGAN       -->
+    <!-- ========================================== -->
+    <nav id="bottomNavKeuangan" class="hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-2xl z-30 bottom-nav-blur px-6 py-2.5 items-center justify-around">
+      <button onclick="openModule('home')" id="nav-home-keuangan" class="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 transition">
+        <i data-lucide="grid-2x2" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold">Menu</span>
+      </button>
+
+      <button onclick="switchTab('keuangan')" id="nav-keuangan" class="flex flex-col items-center gap-1 text-emerald-400 transition">
+        <i data-lucide="landmark" class="w-5 h-5"></i>
+        <span class="text-[10px] font-semibold">Data Keuangan</span>
+      </button>
+
+      <button onclick="switchTab('keuangan-history')" id="nav-keuangan-history" class="flex flex-col items-center gap-1 text-zinc-500 hover:text-zinc-300 transition">
+        <div class="relative">
+          <i data-lucide="mail" class="w-5 h-5"></i>
+          <span id="navKeuHistoryBadge" class="absolute -top-1.5 -right-2.5 px-1.5 py-0.2 bg-emerald-500 text-zinc-950 font-extrabold text-[9px] rounded-full">1</span>
+        </div>
+        <span class="text-[10px] font-semibold">Riwayat Email</span>
       </button>
     </nav>
 
@@ -687,6 +927,10 @@
 
       <div id="memberModeNotice" class="hidden p-3 rounded-xl bg-zinc-800/70 text-center text-[11px] text-zinc-400">
         Anda sedang dalam <b>Mode Anggota</b>. Beralih ke <b>Mode Approver</b> di pojok kanan atas untuk memberikan keputusan.
+      </div>
+
+      <div id="lockedDecisionNotice" class="hidden p-3 rounded-xl bg-zinc-950 border border-zinc-700/80 text-center text-[11px] text-amber-300 font-semibold">
+        🔒 Keputusan sudah final dan terkunci — status tidak dapat diubah lagi.
       </div>
     </div>
   </div>
@@ -900,9 +1144,11 @@
       document.getElementById('gsheetDocUrlInput').value = docUrl;
 
       if (isBridgeConnected || url) {
-        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
-        txt.textContent = 'Google Sheets Terhubung (Live Sync)';
-        txt.className = 'text-[10px] text-emerald-400 font-medium';
+        if (activeModule === 'approval') {
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse';
+          txt.textContent = 'Google Sheets Terhubung (Live Sync)';
+          txt.className = 'text-[10px] text-emerald-400 font-medium truncate';
+        }
         banner.classList.add('hidden');
         shortcut.classList.remove('hidden');
         if (docUrl) {
@@ -910,9 +1156,11 @@
           link.classList.remove('hidden');
         }
       } else {
-        dot.className = 'w-1.5 h-1.5 rounded-full bg-zinc-500';
-        txt.textContent = 'Mode Lokal (Belum terhubung Sheet)';
-        txt.className = 'text-[10px] text-zinc-400';
+        if (activeModule === 'approval') {
+          dot.className = 'w-1.5 h-1.5 rounded-full bg-zinc-500';
+          txt.textContent = 'Mode Lokal (Belum terhubung Sheet)';
+          txt.className = 'text-[10px] text-zinc-400 truncate';
+        }
         banner.classList.remove('hidden');
         shortcut.classList.add('hidden');
       }
@@ -950,8 +1198,8 @@
             saveAuthorizedUsers(json.users);
             renderAuthorizedUsersList();
             if (currentUser) {
-              const liveMatch = json.users.find(u => String(u.username || '').toLowerCase() === String(currentUser.username || '').toLowerCase());
-              if (!liveMatch || liveMatch.active === false || String(liveMatch.active).toUpperCase() === 'FALSE') {
+              const liveMatch = json.users.find(u => String(u.username || '').trim().toLowerCase() === String(currentUser.username || '').trim().toLowerCase());
+              if (!liveMatch || liveMatch.active === false || String(liveMatch.active).trim().toUpperCase() === 'FALSE') {
                 logoutAndLock();
                 showToast('🚫 Akses akun Anda telah dinonaktifkan oleh Owner!');
               }
@@ -1072,6 +1320,10 @@
       document.getElementById('statApprovedAmount').textContent = formatRupiah(approvedSum);
       document.getElementById('statTotalAllAmount').textContent = formatRupiah(totalAllSum);
       document.getElementById('navPendingBadge').textContent = pending.length;
+      const homeApprovalBadge = document.getElementById('homeApprovalBadge');
+      if (homeApprovalBadge) {
+        homeApprovalBadge.textContent = pending.length > 0 ? `${pending.length} Menunggu Persetujuan` : 'Semua Selesai';
+      }
 
       const filtered = list.filter(item => {
         const matchesStatus = currentFilter === 'ALL' || item.status === currentFilter;
@@ -1096,6 +1348,7 @@
 
       container.innerHTML = filtered.map((item, index) => {
         const safeNote = (item.approverNote || '').replace(/"/g, '&quot;');
+        const isLocked = isDecisionLocked(item.status);
         return `
         <div class="glass-card rounded-2xl p-3.5 hover:border-zinc-700 transition">
           <div class="flex items-start gap-3">
@@ -1121,44 +1374,46 @@
                 </div>
               </div>
 
-              <!-- Kolom Input Keterangan Langsung -->
+              <!-- Kolom Input Keterangan Langsung (Terkunci jika sudah final) -->
               <div class="pt-1">
                 <input
                   type="text"
                   id="note-input-${item.id}"
                   value="${safeNote}"
-                  ${currentRole !== 'APPROVER' ? 'disabled' : ''}
-                  placeholder="Isi keterangan / catatan persetujuan di sini..."
+                  ${(currentRole !== 'APPROVER' || isLocked) ? 'disabled' : ''}
+                  placeholder="${isLocked ? 'Keterangan terkunci (keputusan sudah final)' : 'Isi keterangan / catatan persetujuan di sini...'}"
                   onchange="saveInlineNote('${item.id}', this.value)"
-                  class="w-full px-3 py-1.5 rounded-xl bg-zinc-950/90 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs text-zinc-100 placeholder-zinc-500"
+                  class="w-full px-3 py-1.5 rounded-xl bg-zinc-950/90 border border-zinc-800 focus:border-indigo-500 focus:outline-none text-xs ${isLocked ? 'text-zinc-400 opacity-75 cursor-not-allowed' : 'text-zinc-100'} placeholder-zinc-500"
                 />
               </div>
             </div>
 
-            <!-- Tombol Setuju & Tolak di Samping Kanan -->
+            <!-- Tombol Setuju & Tolak di Samping Kanan (Terkunci jika sudah dipilih) -->
             <div class="flex flex-col gap-1.5 shrink-0 justify-center">
-              ${currentRole === 'APPROVER' ? `
-                <button
-                  onclick="quickDecision('${item.id}', 'APPROVED')"
-                  class="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
+              ${currentRole === 'APPROVER' ? (
+                isLocked ? `
+                  <span class="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 select-none cursor-not-allowed border ${
                     item.status === 'APPROVED'
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30'
-                      : 'bg-emerald-500/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30'
-                  }"
-                >
-                  ✓ Setuju
-                </button>
-                <button
-                  onclick="quickDecision('${item.id}', 'REJECTED')"
-                  class="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 ${
-                    item.status === 'REJECTED'
-                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/30'
-                      : 'bg-rose-500/15 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30'
-                  }"
-                >
-                  ✕ Tolak
-                </button>
-              ` : `
+                      ? 'bg-emerald-600/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-rose-600/20 text-rose-300 border-rose-500/40'
+                  }" title="Keputusan sudah final dan tidak dapat diubah lagi">
+                    🔒 ${item.status === 'APPROVED' ? 'Disetujui' : 'Ditolak'}
+                  </span>
+                ` : `
+                  <button
+                    onclick="quickDecision('${item.id}', 'APPROVED')"
+                    class="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 bg-emerald-500/15 hover:bg-emerald-600 text-emerald-300 hover:text-white border border-emerald-500/30"
+                  >
+                    ✓ Setuju
+                  </button>
+                  <button
+                    onclick="quickDecision('${item.id}', 'REJECTED')"
+                    class="px-3 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition active:scale-95 bg-rose-500/15 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30"
+                  >
+                    ✕ Tolak
+                  </button>
+                `
+              ) : `
                 <button onclick="openDetailModal('${item.id}')" class="px-2.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px] text-indigo-400 font-semibold">
                   Detail
                 </button>
@@ -1172,10 +1427,20 @@
       lucide.createIcons();
     }
 
+    function isDecisionLocked(status) {
+      const s = String(status || '').trim().toUpperCase();
+      return s === 'APPROVED' || s === 'REJECTED';
+    }
+
     async function saveInlineNote(id, noteValue) {
       const list = getRequests();
       const idx = list.findIndex(r => r.id === id);
       if (idx === -1) return;
+      if (isDecisionLocked(list[idx].status)) {
+        showToast('🔒 Keputusan sudah final, keterangan tidak dapat diubah lagi!');
+        renderRequests();
+        return;
+      }
       list[idx].approverNote = (noteValue || '').trim();
       saveRequests(list);
       showToast('📝 Keterangan disimpan ke Google Sheets');
@@ -1203,6 +1468,10 @@
       const list = getRequests();
       const idx = list.findIndex(r => r.id === id);
       if (idx === -1) return;
+      if (isDecisionLocked(list[idx].status)) {
+        showToast('🔒 Keputusan sudah final dan tidak dapat diubah lagi!');
+        return;
+      }
 
       const noteInput = document.getElementById('note-input-' + id);
       const typedNote = noteInput ? noteInput.value.trim() : '';
@@ -1245,14 +1514,24 @@
       document.getElementById('modalReceiptImg').src = item.receiptUrl || createReceiptPlaceholder(item.title, formatRupiah(item.amount), item.date, 'LAMPIRAN STRUK');
       document.getElementById('modalApproverNote').value = item.approverNote || '';
 
-      if (currentRole === 'APPROVER') {
+      const isLocked = isDecisionLocked(item.status);
+      const lockedNotice = document.getElementById('lockedDecisionNotice');
+
+      if (currentRole === 'APPROVER' && !isLocked) {
         document.getElementById('approverActionButtons').classList.remove('hidden');
         document.getElementById('modalApproverNote').disabled = false;
         document.getElementById('memberModeNotice').classList.add('hidden');
+        if (lockedNotice) lockedNotice.classList.add('hidden');
+      } else if (currentRole === 'APPROVER' && isLocked) {
+        document.getElementById('approverActionButtons').classList.add('hidden');
+        document.getElementById('modalApproverNote').disabled = true;
+        document.getElementById('memberModeNotice').classList.add('hidden');
+        if (lockedNotice) lockedNotice.classList.remove('hidden');
       } else {
         document.getElementById('approverActionButtons').classList.add('hidden');
         document.getElementById('modalApproverNote').disabled = true;
         document.getElementById('memberModeNotice').classList.remove('hidden');
+        if (lockedNotice) lockedNotice.classList.add('hidden');
       }
 
       const modal = document.getElementById('detailModal');
@@ -1274,6 +1553,11 @@
       const list = getRequests();
       const idx = list.findIndex(r => r.id === targetId);
       if (idx === -1) return;
+      if (isDecisionLocked(list[idx].status)) {
+        showToast('🔒 Keputusan sudah final dan tidak dapat diubah lagi!');
+        closeDetailModal();
+        return;
+      }
 
       const note = document.getElementById('modalApproverNote').value.trim();
       const finalNote = note || (
@@ -1640,27 +1924,447 @@
         `).join('');
     }
 
+    let activeModule = 'approval'; // 'home' | 'approval' | 'keuangan'
+    const KEUANGAN_STORAGE_KEY = 'keuangan_reports_v1';
+    const KEUANGAN_API_URL_KEY = 'keuangan_apps_script_url_v1';
+    const DEFAULT_KEUANGAN_API_URL = '';
+    const KEUANGAN_ALLOWED_SENDER = 'tata88fortuna@gmail.com';
+    const INITIAL_KEUANGAN_RAW = `PT. Fortuna Marina Sejahtera
+piutang per 31 dec 2025 : Rp. 1.000.000.000,-
+utang per 31 dec 2025 : Rp. 1.100.000.000,-
+uang masuk per 20 juli 2026 : Rp. 30.000.000.000,-
+biaya per 20 Juli 2026 : Rp. 35.000.000.000,-
+piutang per 20 juli 2026 : Rp. 1.300.000.000,-
+utang per 20 juli 2026 : Rp. 1.500.000.000,-`;
+    let selectedKeuanganId = null;
+
+    function isAdminUser(user) {
+      const u = user || currentUser;
+      if (!u) return false;
+      const uname = String(u.username || '').trim().toLowerCase();
+      const role = String(u.role || '').trim().toUpperCase();
+      return uname === 'owner' || uname === 'admin' || role === 'ADMIN';
+    }
+
+    function canAccessKeuangan(user) {
+      const u = user || currentUser;
+      if (!u) return false;
+      const uname = String(u.username || '').trim().toLowerCase();
+      const name = String(u.name || '').trim().toLowerCase();
+      const role = String(u.role || '').trim().toUpperCase();
+      if (role === 'MEMBER') return false;
+      return uname === 'owner' || uname === 'admin' || uname === 'paulus' || uname === 'bos1' || name === 'bos1' || role === 'ADMIN' || role === 'APPROVER';
+    }
+
+    function escapeHtmlKeu(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function parseKeuRupiah(rawStr) {
+      const text = String(rawStr || '').trim();
+      const isNeg = text.startsWith('-') || text.includes('(-') || /^\(.*\)$/.test(text);
+      let c = text.replace(/,-$/g, '').replace(/Rp\.?/gi, '').replace(/\s+/g, '').replace(/[()]/g, '');
+      if (c.includes('.') && c.includes(',')) c = c.replace(/\./g, '').replace(',', '.');
+      else if (c.includes('.') && c.split('.').pop().length === 3) c = c.replace(/\./g, '');
+      else if (c.includes(',') && c.split(',').pop().length === 3) c = c.replace(/,/g, '');
+      else c = c.replace(',', '.');
+      const v = parseFloat(c.replace(/[^0-9.-]/g, ''));
+      return isNaN(v) ? 0 : (isNeg && v > 0 ? -v : v);
+    }
+
+    function parseKeuanganText(rawText, meta = {}) {
+      const lines = String(rawText || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      let companyName = '';
+      const items = [];
+      lines.forEach(line => {
+        const idx = line.indexOf(':');
+        if (idx === -1) { if (!companyName) companyName = line; return; }
+        const left = line.substring(0, idx).trim();
+        const right = line.substring(idx + 1).trim();
+        if (/^(nama\s*perusahaan|perusahaan|company|pt|cv)$/i.test(left)) { companyName = right; return; }
+        if (!/\d/.test(right)) return;
+        const lower = left.toLowerCase();
+        const perMatch = left.match(/\bper\s+(.+)$/i);
+        const yrMatch = left.match(/\b(20\d{2})\b/);
+        const isEOY = /\b31\s*(dec|des|desember|december)\b/i.test(lower) || /akhir\s*tahun/i.test(lower);
+        let metricType = 'lainnya';
+        if (lower.includes('piutang')) metricType = 'piutang';
+        else if (lower.includes('utang') || lower.includes('hutang')) metricType = 'utang';
+        else if (lower.includes('uang masuk') || lower.includes('pemasukan') || lower.includes('pendapatan') || lower.includes('penjualan')) metricType = 'uang_masuk';
+        else if (lower.includes('biaya') || lower.includes('pengeluaran') || lower.includes('beban')) metricType = 'biaya';
+        else if (lower.includes('kas') || lower.includes('bank') || lower.includes('saldo')) metricType = 'saldo';
+        items.push({
+          rawLabel: left,
+          metricName: left.replace(/\s*\bper\s+.+$/i, '').trim().replace(/\b\w/g, ch => ch.toUpperCase()),
+          metricType,
+          amount: parseKeuRupiah(right),
+          periodLabel: perMatch ? perMatch[1].trim() : '',
+          year: yrMatch ? parseInt(yrMatch[1], 10) : null,
+          isEndOfYear: isEOY
+        });
+      });
+      const yrs = items.map(i => i.year).filter(y => y !== null);
+      const maxY = yrs.length ? Math.max(...yrs) : null;
+      const minY = yrs.length ? Math.min(...yrs) : null;
+      items.forEach(i => {
+        i.section = (i.isEndOfYear || (maxY && minY && maxY !== minY && i.year === minY)) ? 'LAST_YEAR' : 'CURRENT';
+      });
+      const ly = items.filter(i => i.section === 'LAST_YEAR');
+      const cur = items.filter(i => i.section === 'CURRENT');
+      return {
+        id: meta.id || '1a20bee5f569c3d9_0',
+        subject: meta.subject || 'data Keuangan FMS',
+        sender: meta.sender || 'tata tjemerlang <tata88fortuna@gmail.com>',
+        emailDate: meta.emailDate || '2026-11-24 12:01 WIB',
+        companyName: companyName || 'PT. Fortuna Marina Sejahtera',
+        lastYearPeriod: (ly.find(i => i.periodLabel) || {}).periodLabel || 'Akhir Tahun Lalu',
+        currentPeriod: (cur.find(i => i.periodLabel) || {}).periodLabel || 'Periode Berjalan',
+        items
+      };
+    }
+
+    function getKeuanganReports() {
+      const raw = localStorage.getItem(KEUANGAN_STORAGE_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch {}
+      }
+      const init = [parseKeuanganText(INITIAL_KEUANGAN_RAW)];
+      localStorage.setItem(KEUANGAN_STORAGE_KEY, JSON.stringify(init));
+      return init;
+    }
+
+    function saveKeuanganReports(list) {
+      localStorage.setItem(KEUANGAN_STORAGE_KEY, JSON.stringify(list));
+    }
+
+    function getKeuanganApiUrl() {
+      return (localStorage.getItem(KEUANGAN_API_URL_KEY) || '').trim() || DEFAULT_KEUANGAN_API_URL;
+    }
+
+    async function saveKeuanganApiConfig() {
+      const inp = document.getElementById('keuanganAppsScriptInput');
+      const url = (inp ? inp.value : '').trim();
+      localStorage.setItem(KEUANGAN_API_URL_KEY, url);
+      showToast(url ? '🔄 Menyinkronkan Data Keuangan...' : 'Disimpan (Mode Snapshot Harian)');
+      await fetchKeuanganData(true);
+    }
+
+    async function fetchKeuanganData(showNotif = false) {
+      if (!canAccessKeuangan()) return;
+      const icon = document.getElementById('refreshIcon');
+      if (icon) icon.classList.add('animate-spin');
+      const apiUrl = getKeuanganApiUrl();
+      try {
+        if (apiUrl) {
+          const target = showNotif ? (apiUrl + (apiUrl.includes('?') ? '&' : '?') + 'force=1') : apiUrl;
+          const res = await fetch(target);
+          const json = await res.json();
+          if (json && json.ok && Array.isArray(json.reports) && json.reports.length > 0) {
+            saveKeuanganReports(json.reports);
+            selectedKeuanganId = json.reports[0].id;
+            renderKeuanganView();
+            if (showNotif) showToast('✅ Data Keuangan terbaru berhasil disinkronkan!');
+            return;
+          }
+        }
+        if (window.location.protocol !== 'file:') {
+          const res = await fetch('./data-keuangan.json?t=' + Date.now(), { cache: 'no-store' });
+          if (res.ok) {
+            const json = await res.json();
+            if (json && json.ok && Array.isArray(json.reports) && json.reports.length > 0) {
+              saveKeuanganReports(json.reports);
+              selectedKeuanganId = json.reports[0].id;
+              renderKeuanganView();
+              if (showNotif) showToast('✅ Data Keuangan harian terbaru dimuat!');
+              return;
+            }
+          }
+        }
+        if (showNotif) showToast('ℹ️ Data Keuangan terbaru sudah tampil (cek 1x/hari 06:00 WIB)');
+      } catch {
+        if (showNotif) showToast('⚠️ Gagal menarik Data Keuangan terbaru');
+      } finally {
+        if (icon) icon.classList.remove('animate-spin');
+      }
+    }
+
+    function getKeuVisual(type) {
+      switch (type) {
+        case 'uang_masuk': return { dot: 'bg-emerald-400', valColor: 'text-emerald-400' };
+        case 'biaya': return { dot: 'bg-rose-400', valColor: 'text-rose-400' };
+        case 'piutang': return { dot: 'bg-sky-400', valColor: 'text-sky-400' };
+        case 'utang': return { dot: 'bg-amber-400', valColor: 'text-amber-400' };
+        case 'saldo': return { dot: 'bg-teal-400', valColor: 'text-teal-400' };
+        default: return { dot: 'bg-zinc-400', valColor: 'text-white' };
+      }
+    }
+
+    function renderKeuRows(items, emptyMsg) {
+      if (!items || !items.length) return `<div class="py-5 text-center text-xs text-zinc-500">${emptyMsg}</div>`;
+      return items.map(it => {
+        const vis = getKeuVisual(it.metricType);
+        const n = Number(it.amount || 0);
+        const formatted = (n < 0 ? '-Rp ' : 'Rp ') + Math.abs(n).toLocaleString('id-ID');
+        return `
+          <div class="py-3.5 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-2.5 h-2.5 rounded-full ${vis.dot} shrink-0"></span>
+              <span class="text-sm sm:text-base font-semibold text-zinc-200 truncate">${escapeHtmlKeu(it.metricName)}</span>
+            </div>
+            <span class="text-base sm:text-xl font-extrabold ${vis.valColor} num-tabular whitespace-nowrap tracking-tight">${formatted}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectKeuanganReport(id) {
+      selectedKeuanganId = id;
+      renderKeuanganView();
+    }
+
+    function openKeuanganFromHistory(id) {
+      selectedKeuanganId = id;
+      renderKeuanganView();
+      switchTab('keuangan');
+    }
+
+    function renderKeuanganView() {
+      const reports = getKeuanganReports();
+      const rep = (selectedKeuanganId && reports.find(r => r.id === selectedKeuanganId)) || reports[0];
+      if (!rep) return;
+      selectedKeuanganId = rep.id;
+
+      const homeCo = document.getElementById('homeKeuanganCompany');
+      if (homeCo) homeCo.textContent = rep.companyName;
+
+      const badge = document.getElementById('navKeuHistoryBadge');
+      if (badge) badge.textContent = reports.length;
+
+      const selRow = document.getElementById('keuSelectorRow');
+      const selEl = document.getElementById('keuReportSelect');
+      if (selRow && selEl) {
+        if (reports.length > 1) {
+          selRow.classList.remove('hidden');
+          selEl.innerHTML = reports.map(r => `<option value="${escapeHtmlKeu(r.id)}" ${r.id === rep.id ? 'selected' : ''}>${escapeHtmlKeu(r.companyName)} (${escapeHtmlKeu(r.emailDate)})</option>`).join('');
+        } else {
+          selRow.classList.add('hidden');
+        }
+      }
+
+      document.getElementById('keuCompanyName').textContent = rep.companyName;
+      document.getElementById('keuSenderText').textContent = rep.sender;
+      document.getElementById('keuDateText').textContent = rep.emailDate;
+      document.getElementById('keuLastYearPeriodTag').textContent = 'per ' + (rep.lastYearPeriod || 'Akhir Tahun Lalu');
+      document.getElementById('keuCurrentPeriodTag').textContent = 'per ' + (rep.currentPeriod || 'Periode Berjalan');
+
+      const ly = (rep.items || []).filter(i => i.section === 'LAST_YEAR');
+      const cur = (rep.items || []).filter(i => i.section !== 'LAST_YEAR');
+      document.getElementById('keuLastYearBody').innerHTML = renderKeuRows(ly, 'Belum ada data saldo akhir tahun lalu.');
+      document.getElementById('keuCurrentBody').innerHTML = renderKeuRows(cur, 'Belum ada data periode berjalan.');
+
+      const histEl = document.getElementById('keuHistoryList');
+      if (histEl) {
+        histEl.innerHTML = reports.map((r, idx) => `
+          <div onclick="openKeuanganFromHistory('${escapeHtmlKeu(r.id)}')" class="glass-card rounded-2xl p-4 cursor-pointer transition hover:border-emerald-500/40 ${r.id === rep.id ? 'border-emerald-500/50 bg-emerald-950/20' : 'border-zinc-800'}">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-start gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center font-extrabold text-xs text-emerald-300 shrink-0">${idx + 1}</div>
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5 flex-wrap">
+                    <h4 class="text-sm font-bold text-white">${escapeHtmlKeu(r.companyName)}</h4>
+                    ${r.id === rep.id ? '<span class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Aktif</span>' : ''}
+                  </div>
+                  <p class="text-[11px] text-zinc-300 mt-0.5">${escapeHtmlKeu(r.subject)}</p>
+                  <p class="text-[10px] text-zinc-400 mt-0.5">${escapeHtmlKeu(r.emailDate)} &bull; ${(r.items || []).length} Pos</p>
+                </div>
+              </div>
+              <span class="px-2.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-[10px] font-bold text-emerald-300 shrink-0">Lihat &rarr;</span>
+            </div>
+          </div>
+        `).join('');
+      }
+      lucide.createIcons();
+    }
+
+    function updateHeaderBranding(mode) {
+      const iconBox = document.getElementById('headerBrandIcon');
+      const titleEl = document.getElementById('headerBrandTitle');
+      const statusTxt = document.getElementById('gsheetStatusText');
+      if (!iconBox || !titleEl) return;
+
+      if (mode === 'keuangan') {
+        iconBox.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 shrink-0';
+        iconBox.innerHTML = '<i data-lucide="landmark" class="w-5 h-5 text-white"></i>';
+        titleEl.textContent = 'Data Keuangan';
+        if (statusTxt) statusTxt.textContent = 'Update 1x/Hari (06:00 WIB) • tata88fortuna@gmail.com';
+      } else if (mode === 'whitelist') {
+        iconBox.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/20 shrink-0';
+        iconBox.innerHTML = '<i data-lucide="shield-alert" class="w-5 h-5 text-white"></i>';
+        titleEl.textContent = 'Whitelist Pengguna';
+        if (statusTxt) statusTxt.textContent = 'Kontrol Akses Pengguna • Khusus Admin';
+      } else if (mode === 'home') {
+        iconBox.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0';
+        iconBox.innerHTML = '<i data-lucide="grid-2x2" class="w-5 h-5 text-white"></i>';
+        titleEl.textContent = 'Menu Utama';
+        if (statusTxt) statusTxt.textContent = isAdminUser() ? 'Approval • Data Keuangan • Whitelist' : 'Pilih Menu: Approval atau Data Keuangan';
+      } else {
+        iconBox.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0';
+        iconBox.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-white"></i>';
+        titleEl.textContent = 'ApproveHub';
+        updateGoogleSheetConnectionIndicator();
+      }
+      lucide.createIcons();
+    }
+
+    function goToHomeMenuIfAllowed() {
+      if (canAccessKeuangan()) {
+        openModule('home');
+      }
+    }
+
+    function refreshActiveModule() {
+      if (activeModule === 'keuangan') {
+        fetchKeuanganData(true);
+      } else {
+        fetchFromGoogleSheets(true);
+        if (canAccessKeuangan()) fetchKeuanganData(false);
+      }
+    }
+
+    function openModule(mod) {
+      if (mod === 'whitelist') {
+        if (!isAdminUser()) {
+          showToast('🔒 Menu Whitelist khusus untuk Admin!');
+          switchTab(canAccessKeuangan() ? 'home-menu' : 'dashboard');
+          return;
+        }
+        switchTab('whitelist');
+        return;
+      }
+      if ((mod === 'keuangan' || mod === 'home') && !canAccessKeuangan()) {
+        switchTab('dashboard');
+        return;
+      }
+      if (mod === 'home') {
+        switchTab('home-menu');
+      } else if (mod === 'keuangan') {
+        switchTab('keuangan');
+      } else {
+        switchTab('dashboard');
+      }
+    }
+
     function switchTab(tab) {
+      // Proteksi ketat: Whitelist HANYA untuk Admin
+      if (tab === 'whitelist' && !isAdminUser()) {
+        showToast('🔒 Menu Whitelist khusus untuk Admin!');
+        tab = canAccessKeuangan() ? 'home-menu' : 'dashboard';
+      }
+      // Proteksi ketat: hanya Admin & Bos1 yang boleh akses Menu Utama & Data Keuangan
+      if ((tab === 'keuangan' || tab === 'keuangan-history' || tab === 'home-menu') && !canAccessKeuangan()) {
+        tab = 'dashboard';
+      }
+
+      const allViews = ['home-menu', 'dashboard', 'form', 'reports', 'keuangan', 'keuangan-history', 'whitelist'];
+      allViews.forEach(t => {
+        const el = document.getElementById('view-' + t);
+        if (el) el.classList.add('hidden');
+      });
+
       ['dashboard', 'form', 'reports'].forEach(t => {
-        document.getElementById('view-' + t).classList.add('hidden');
         const navBtn = document.getElementById('nav-' + t);
         if (navBtn) {
           navBtn.classList.remove('text-indigo-400');
           navBtn.classList.add('text-zinc-500');
         }
       });
+      ['keuangan', 'keuangan-history'].forEach(t => {
+        const navBtn = document.getElementById('nav-' + t);
+        if (navBtn) {
+          navBtn.classList.remove('text-emerald-400');
+          navBtn.classList.add('text-zinc-500');
+        }
+      });
 
-      document.getElementById('view-' + tab).classList.remove('hidden');
-      const activeNav = document.getElementById('nav-' + tab);
-      if (activeNav) {
-        activeNav.classList.remove('text-zinc-500');
-        activeNav.classList.add('text-indigo-400');
+      const targetView = document.getElementById('view-' + tab);
+      if (targetView) targetView.classList.remove('hidden');
+
+      const navApproval = document.getElementById('bottomNavApproval');
+      const navKeuangan = document.getElementById('bottomNavKeuangan');
+      const navHomeInApproval = document.getElementById('nav-home-approval');
+      if (navHomeInApproval) {
+        if (canAccessKeuangan()) {
+          navHomeInApproval.classList.remove('hidden');
+          navHomeInApproval.classList.add('flex');
+        } else {
+          navHomeInApproval.classList.add('hidden');
+          navHomeInApproval.classList.remove('flex');
+        }
       }
 
-      if (tab === 'dashboard') renderRequests();
-      if (tab === 'reports') {
-        updateGoogleSheetConnectionIndicator();
-        renderReports();
+      const showBackControls = canAccessKeuangan() && tab !== 'home-menu';
+      const btnBackToMenu = document.getElementById('btnBackToMenu');
+      if (btnBackToMenu) {
+        btnBackToMenu.classList.toggle('hidden', !showBackControls);
+        btnBackToMenu.classList.toggle('flex', showBackControls);
+      }
+      const inlineBackBar = document.getElementById('inlineBackToMenuBar');
+      if (inlineBackBar) {
+        inlineBackBar.classList.toggle('hidden', !showBackControls);
+      }
+
+      if (tab === 'home-menu') {
+        activeModule = 'home';
+        if (navApproval) { navApproval.classList.add('hidden'); navApproval.classList.remove('flex'); }
+        if (navKeuangan) { navKeuangan.classList.add('hidden'); navKeuangan.classList.remove('flex'); }
+        const welcomeEl = document.getElementById('homeWelcomeName');
+        if (welcomeEl && currentUser) welcomeEl.textContent = currentUser.name;
+        const wlCard = document.getElementById('homeWhitelistCard');
+        if (wlCard) wlCard.classList.toggle('hidden', !isAdminUser());
+        renderRequests();
+        renderKeuanganView();
+        updateHeaderBranding('home');
+      } else if (tab === 'whitelist') {
+        activeModule = 'whitelist';
+        if (navApproval) { navApproval.classList.add('hidden'); navApproval.classList.remove('flex'); }
+        if (navKeuangan) { navKeuangan.classList.add('hidden'); navKeuangan.classList.remove('flex'); }
+        renderAuthorizedUsersList();
+        updateHeaderBranding('whitelist');
+      } else if (tab === 'keuangan' || tab === 'keuangan-history') {
+        activeModule = 'keuangan';
+        if (navApproval) { navApproval.classList.add('hidden'); navApproval.classList.remove('flex'); }
+        if (navKeuangan) { navKeuangan.classList.remove('hidden'); navKeuangan.classList.add('flex'); }
+        const activeNav = document.getElementById('nav-' + tab);
+        if (activeNav) {
+          activeNav.classList.remove('text-zinc-500');
+          activeNav.classList.add('text-emerald-400');
+        }
+        renderKeuanganView();
+        updateHeaderBranding('keuangan');
+      } else {
+        activeModule = 'approval';
+        if (navKeuangan) { navKeuangan.classList.add('hidden'); navKeuangan.classList.remove('flex'); }
+        if (navApproval) { navApproval.classList.remove('hidden'); navApproval.classList.add('flex'); }
+        const activeNav = document.getElementById('nav-' + tab);
+        if (activeNav) {
+          activeNav.classList.remove('text-zinc-500');
+          activeNav.classList.add('text-indigo-400');
+        }
+        if (tab === 'dashboard') renderRequests();
+        if (tab === 'reports') {
+          updateGoogleSheetConnectionIndicator();
+          renderReports();
+          const keuCfgCard = document.getElementById('keuanganSyncConfigCard');
+          const keuCfgInp = document.getElementById('keuanganAppsScriptInput');
+          if (keuCfgCard) {
+            keuCfgCard.classList.toggle('hidden', !isAdminUser());
+          }
+          if (keuCfgInp) keuCfgInp.value = getKeuanganApiUrl();
+        }
+        updateHeaderBranding('approval');
       }
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -1839,6 +2543,19 @@ function doPost(e) {
       showToast('📋 Kode Apps Script berhasil disalin!');
     }
 
+    function normalizeUserRecord(u) {
+      return {
+        ...u,
+        userId: String(u.userId || '').trim(),
+        username: String(u.username || '').trim(),
+        name: String(u.name || '').trim(),
+        division: String(u.division || '').trim(),
+        role: String(u.role || 'MEMBER').trim().toUpperCase(),
+        accessCode: String(u.accessCode || '').trim(),
+        active: u.active !== false && String(u.active).trim().toUpperCase() !== 'FALSE'
+      };
+    }
+
     function getAuthorizedUsers() {
       const raw = localStorage.getItem(USERS_STORAGE_KEY);
       if (!raw) {
@@ -1846,19 +2563,33 @@ function doPost(e) {
         return DEFAULT_AUTHORIZED_USERS;
       }
       try {
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.map(normalizeUserRecord);
+        return DEFAULT_AUTHORIZED_USERS;
       } catch {
         return DEFAULT_AUTHORIZED_USERS;
       }
     }
 
     function saveAuthorizedUsers(users) {
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+      const clean = (users || []).map(normalizeUserRecord);
+      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(clean.length > 0 ? clean : DEFAULT_AUTHORIZED_USERS));
     }
 
     function isLocalOwnerMachine() {
       const h = window.location.hostname;
       return h === 'localhost' || h === '127.0.0.1' || window.location.protocol === 'file:';
+    }
+
+    function hideAllAppViewsBehindGate() {
+      ['home-menu', 'dashboard', 'form', 'reports', 'keuangan', 'keuangan-history', 'whitelist'].forEach(t => {
+        const el = document.getElementById('view-' + t);
+        if (el) el.classList.add('hidden');
+      });
+      ['bottomNavApproval', 'bottomNavKeuangan', 'inlineBackToMenuBar', 'btnBackToMenu'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.classList.add('hidden'); el.classList.remove('flex'); }
+      });
     }
 
     function initAccessControlSession() {
@@ -1867,8 +2598,10 @@ function doPost(e) {
 
       if (savedSession) {
         try {
-          const parsed = JSON.parse(savedSession);
-          const match = users.find(u => u.username.toLowerCase() === (parsed.username || '').toLowerCase() && u.active !== false);
+          const parsed = normalizeUserRecord(JSON.parse(savedSession));
+          const match = users.find(u =>
+            u.username.toLowerCase() === parsed.username.toLowerCase() && u.active !== false
+          );
           if (match) {
             applyAuthenticatedUser(match);
             return;
@@ -1876,12 +2609,13 @@ function doPost(e) {
         } catch {}
       }
 
-      // Di laptop Owner (localhost), otomatis masuk sebagai Owner / Admin Utama agar tidak perlu login berulang
+      // Di laptop Owner (localhost), otomatis masuk sebagai Owner / Admin Utama ke Menu Utama
       if (isLocalOwnerMachine()) {
         const ownerUser = users.find(u => u.role === 'ADMIN') || DEFAULT_AUTHORIZED_USERS[0];
         applyAuthenticatedUser(ownerUser);
       } else {
         // Jika dibuka dari GitHub Pages / HP luar, wajib melewati Gerbang Login
+        hideAllAppViewsBehindGate();
         showLoginGate();
       }
     }
@@ -1900,6 +2634,14 @@ function doPost(e) {
       hideLoginGate();
       updateRoleUI();
       renderAuthorizedUsersList();
+
+      // Setelah login: Admin & Bos1 langsung masuk ke Pilihan 2 Menu (Approval & Data Keuangan)
+      if (canAccessKeuangan(user)) {
+        openModule('home');
+        fetchKeuanganData(false);
+      } else {
+        openModule('approval');
+      }
     }
 
     function showLoginGate() {
@@ -1927,6 +2669,7 @@ function doPost(e) {
       localStorage.removeItem(ACTIVE_USER_KEY);
       currentUser = null;
       closeRoleModal();
+      hideAllAppViewsBehindGate();
       openLoginGateForSwitch();
       showToast('🔒 Layar berhasil dikunci');
     }
@@ -1938,10 +2681,15 @@ function doPost(e) {
       const errEl = document.getElementById('gateErrorMsg');
 
       const users = getAuthorizedUsers();
-      const found = users.find(u =>
-        (String(u.username || '').toLowerCase() === uname || String(u.name || '').toLowerCase() === uname) &&
-        String(u.accessCode || '') === code
-      );
+      const found = users.find(u => {
+        const uLower = String(u.username || '').toLowerCase();
+        const nLower = String(u.name || '').toLowerCase();
+        const aliasMatch =
+          (uLower === 'owner' && uname === 'admin') ||
+          (uLower === 'paulus' && uname === 'bos1');
+        return (uLower === uname || nLower === uname || aliasMatch) &&
+          String(u.accessCode || '') === code;
+      });
 
       if (!found) {
         errEl.textContent = '❌ ID Login atau Kode PIN tidak terdaftar!';
@@ -1966,7 +2714,7 @@ function doPost(e) {
 
       const section = document.getElementById('userAccessControlSection');
       if (section) {
-        if (currentRole === 'APPROVER') {
+        if (isAdminUser()) {
           section.classList.remove('hidden');
         } else {
           section.classList.add('hidden');
@@ -2012,6 +2760,10 @@ function doPost(e) {
 
     async function handleAddAuthorizedUser(e) {
       e.preventDefault();
+      if (!isAdminUser()) {
+        showToast('🔒 Hanya Admin yang dapat menambah pengguna Whitelist!');
+        return;
+      }
       const name = document.getElementById('newUserName').value.trim();
       const username = document.getElementById('newUserUsername').value.trim().toLowerCase().replace(/\s+/g, '');
       const division = document.getElementById('newUserDivision').value.trim();
@@ -2051,6 +2803,10 @@ function doPost(e) {
     }
 
     async function toggleAuthorizedUser(userId, newActiveState) {
+      if (!isAdminUser()) {
+        showToast('🔒 Hanya Admin yang dapat mengubah status Whitelist!');
+        return;
+      }
       const users = getAuthorizedUsers();
       const idx = users.findIndex(u => u.userId === userId);
       if (idx === -1) return;

@@ -1,0 +1,91 @@
+{
+  "ok": true,
+  "allowedSender": "tata88fortuna@gmail.com",
+  "syncedAt": "2026-11-24 12:01:29 WIB",
+  "schedule": "1x sehari (06:00 WIB)",
+  "count": 1,
+  "reports": [
+    {
+      "id": "1a20bee5f569c3d9_0",
+      "messageId": "1a20bee5f569c3d9",
+      "subject": "data Keuangan FMS",
+      "sender": "tata tjemerlang <tata88fortuna@gmail.com>",
+      "emailDate": "2026-11-24 12:01 WIB",
+      "emailTimestamp": 1795496489000,
+      "filename": "data keuangan fms.txt",
+      "companyName": "PT. Fortuna Marina Sejahtera",
+      "lastYearPeriod": "31 dec 2025",
+      "currentPeriod": "20 juli 2026",
+      "items": [
+        {
+          "rawLabel": "piutang per 31 dec 2025",
+          "metricName": "Piutang",
+          "metricType": "piutang",
+          "rawValue": "Rp. 1.000.000.000,-",
+          "amount": 1000000000,
+          "periodLabel": "31 dec 2025",
+          "year": 2025,
+          "isEndOfYear": true,
+          "section": "LAST_YEAR"
+        },
+        {
+          "rawLabel": "utang per 31 dec 2025",
+          "metricName": "Utang",
+          "metricType": "utang",
+          "rawValue": "Rp. 1.100.000.000,-",
+          "amount": 1100000000,
+          "periodLabel": "31 dec 2025",
+          "year": 2025,
+          "isEndOfYear": true,
+          "section": "LAST_YEAR"
+        },
+        {
+          "rawLabel": "uang masuk per 20 juli 2026",
+          "metricName": "Uang Masuk",
+          "metricType": "uang_masuk",
+          "rawValue": "Rp. 30.000.000.000,-",
+          "amount": 30000000000,
+          "periodLabel": "20 juli 2026",
+          "year": 2026,
+          "isEndOfYear": false,
+          "section": "CURRENT"
+        },
+        {
+          "rawLabel": "biaya per 20 Juli 2026",
+          "metricName": "Biaya",
+          "metricType": "biaya",
+          "rawValue": "Rp. 35.000.000.000,-",
+          "amount": 35000000000,
+          "periodLabel": "20 Juli 2026",
+          "year": 2026,
+          "isEndOfYear": false,
+          "section": "CURRENT"
+        },
+        {
+          "rawLabel": "piutang per 20 juli 2026",
+          "metricName": "Piutang",
+          "metricType": "piutang",
+          "rawValue": "Rp. 1.300.000.000,-",
+          "amount": 1300000000,
+          "periodLabel": "20 juli 2026",
+          "year": 2026,
+          "isEndOfYear": false,
+          "section": "CURRENT"
+        },
+        {
+          "rawLabel": "utang per 20 juli 2026",
+          "metricName": "Utang",
+          "metricType": "utang",
+          "rawValue": "Rp. 1.500.000.000,-",
+          "amount": 1500000000,
+          "periodLabel": "20 juli 2026",
+          "year": 2026,
+          "isEndOfYear": false,
+          "section": "CURRENT"
+        }
+      ],
+      "notes": [],
+      "rawContent": "PT. Fortuna Marina Sejahtera\npiutang per 31 dec 2025 : Rp. 1.000.000.000,-\nutang per 31 dec 2025 : Rp. 1.100.000.000,-\nuang masuk per 20 juli 2026 : Rp. 30.000.000.000,-\nbiaya per 20 Juli 2026 : Rp. 35.000.000.000,-\npiutang per 20 juli 2026 : Rp. 1.300.000.000,-\nutang per 20 juli 2026 : Rp. 1.500.000.000,-"
+    }
+  ]
+}
